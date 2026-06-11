@@ -87,7 +87,7 @@ Note: lineup lock state is never stored explicitly. It is always derived by comp
 
 Responsibilities:
 - Ingests MLB player master data (name, MLB ID, eligible positions, handedness, team) from the MLB Stats API on a periodic basis
-- Ingests weekly performance stats for all rostered players — see Simulation Design for the specific metrics required
+- Ingests two stat snapshots per player per matchup: a pre-lock snapshot (season stats up to the lineup lock date, for AI manager decisions) and a post-lock stat line (stats from the period after lineup lock, for probability estimation). The weekly stat line must include all metrics required by the sim engine — PA, BF, pitch count, and performance stats
 - Critically, the pipeline run that feeds each sim must execute *after* the relevant real-life games have concluded but *before* the sim fires. Its schedule is therefore tightly coupled to the sim schedule, not a background weekly batch
 - Writes directly to PostgreSQL
 
@@ -99,7 +99,13 @@ The sim engine uses a **probabilistic, stat-driven model** to resolve each plate
 
 ### Stat Window
 
-The sim is a prediction game: managers select lineups based on how they expect their players to perform in the subsequent period. Accordingly, the sim uses each player's **real-life stats from the period between lineup lock and sim run** — not season-to-date stats — as the basis for simulation probabilities.
+The sim is a prediction game: managers select lineups based on how they expect their players to perform in the subsequent period. This requires two separate stat snapshots per player per matchup, used in distinct contexts:
+
+**Post-lock stats** (stats from the period between lineup lock and sim run): used exclusively to estimate outcome probabilities (likelihood of a hit, strikeout, home run, etc.). These stats are unknowable at lineup-set time and are deliberately withheld from the AI manager.
+
+**Pre-lock stats** (season stats up to the lineup lock date): used exclusively by the AI manager for in-game decisions (whether to pull a pitcher, whether to pinch hit, etc.), supplemented by each player's performance in the sim so far. Giving the AI manager access to post-lock stats would be clairvoyance — it would be making tactically optimal decisions based on information that wasn't available when the lineup was set.
+
+The data pipeline must capture both snapshots, and the sim engine must be careful to use each only in the appropriate context.
 
 ### Player Appearance Caps
 
@@ -127,12 +133,13 @@ A pitcher with 0 real-life appearances is unavailable for the sim entirely.
 
 **Narrative handling:** When a player is removed due to hitting his appearance cap, the play-by-play includes a note such as "[Player] removed himself in the 5th inning due to illness."
 
-**Data pipeline requirement:** Weekly PA counts (for batters) and weekly BF and pitch counts (for pitchers) must be ingested alongside stat lines.
+**Data pipeline requirement:** PA, BF, and pitch count are among the weekly stats that must be ingested for the sim engine.
 
 ### Inputs per matchup
 - Both teams' locked lineups (batting order, field positions, SP)
 - Both teams' full rosters (for AI manager substitutions)
-- Weekly stat lines and appearance counts for all players on both rosters
+- Post-lock stat lines for all players on both rosters (for probability estimation)
+- Pre-lock stat snapshots for all players on both rosters (for AI manager decisions)
 - Lineup lock timestamp (to correctly window the stats)
 - Pitcher handedness and batter platoon splits
 
