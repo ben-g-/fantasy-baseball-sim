@@ -92,10 +92,10 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Batting order slots 1–9 with field position display
 - Bench and bullpen sections
 - SP Selection panel (modal): list of pitcher-eligible players, ineligibility indicators, stats
-- Inline batting order editing: drag to reorder, field position picker per slot
+- Inline batting order editing: drag to reorder, drag bench player into batting slot (retaining previous field position if ineligible, for manager to resolve), drag bench player onto Pitcher slot → DH; "Use SP instead" control on DH slot card
+- Field position picker per slot (inline dropdown)
 - Inline validation highlighting with hover tooltips
 - Unsaved changes indicator; auto-save on valid state; silent revert on navigation away
-- DH / SP-batting toggle logic (drag bench player onto Pitcher slot → DH; "Use SP instead" control)
 - Supabase Realtime subscription: update lock state when deadline passes without page refresh
 
 **Frontend — Home Screen**
