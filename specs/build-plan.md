@@ -64,8 +64,8 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 **Seed data for development**
 - Create a seed script that inserts:
-  - Two test leagues and four test teams (two per league)
-  - Two test managers (linked to real user accounts)
+  - Two test leagues, each with 10 teams
+  - Two real test manager accounts (each in both leagues) plus 8 placeholder bot managers per league (to simulate a realistic league without requiring 10 real users)
   - Realistic 22-player rosters for each team drawn from the players table
   - A matchup schedule for the current season
   - Default lineups for the current week's matchup
