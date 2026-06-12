@@ -168,10 +168,12 @@ Unique constraint: (lineup_id, field_position) — no two batters may share a fi
 
 ## 4. Player Stats
 
-Two stat snapshots are captured per player per matchup, both by the data pipeline:
+Two stat snapshots are captured per player per sim date, both by the data pipeline:
 
 - **Pre-lock:** season stats up to the lineup lock date. Used by the AI manager for in-game decisions. Captured at the batting order lock time.
-- **Post-lock:** stats from the period between lineup lock and sim run. Used to estimate plate appearance outcome probabilities. Captured just before the sim fires.
+- **Post-lock:** stats from the period between lineup lock and sim run. Used to estimate plate appearance outcome probabilities and enforce appearance caps. Captured just before the sim fires.
+
+Stats are keyed by `(player_id, sim_date)` rather than by matchup, since all leagues simming on the same date share identical stats for a given player. `sim_date` is the date portion of `sim_scheduled_at`.
 
 Because the two contexts require different columns, each has its own table. Two-way players have rows in both the batter and pitcher tables.
 
@@ -182,8 +184,8 @@ Season batting stats up to the lineup lock date. Used by the AI manager for in-g
 
 | Column | Type | Notes |
 |---|---|---|
-| matchup_id | UUID | FK to matchups.id |
 | player_id | integer | FK to players.mlb_id |
+| sim_date | date | |
 | pa | integer | Plate appearances |
 | singles | integer | |
 | doubles | integer | |
@@ -199,7 +201,7 @@ Season batting stats up to the lineup lock date. Used by the AI manager for in-g
 
 Platoon splits are also stored on this table as `vs_lhp_*` and `vs_rhp_*` variants of the counting stats above (excluding sb and cs), e.g. `vs_lhp_pa`, `vs_lhp_singles`, `vs_rhp_hr`, etc. These enable the AI manager to account for handedness matchups.
 
-Primary key: (matchup_id, player_id)
+Primary key: (player_id, sim_date)
 
 ---
 
@@ -208,8 +210,8 @@ Weekly batting stats from the period after lineup lock. Used to estimate plate a
 
 | Column | Type | Notes |
 |---|---|---|
-| matchup_id | UUID | FK to matchups.id |
 | player_id | integer | FK to players.mlb_id |
+| sim_date | date | |
 | pa | integer | Plate appearances; used for sim appearance cap |
 | singles | integer | |
 | doubles | integer | |
@@ -225,7 +227,7 @@ Weekly batting stats from the period after lineup lock. Used to estimate plate a
 
 No platoon splits — post-lock sample size is too small to be meaningful.
 
-Primary key: (matchup_id, player_id)
+Primary key: (player_id, sim_date)
 
 ---
 
@@ -234,8 +236,8 @@ Season pitching stats up to the lineup lock date. Used by the AI manager for in-
 
 | Column | Type | Notes |
 |---|---|---|
-| matchup_id | UUID | FK to matchups.id |
 | player_id | integer | FK to players.mlb_id |
+| sim_date | date | |
 | bf | integer | Batters faced |
 | pitches_thrown | integer | |
 | singles | integer | |
@@ -248,9 +250,8 @@ Season pitching stats up to the lineup lock date. Used by the AI manager for in-
 | go | integer | |
 | fo | integer | |
 | po | integer | Pickoffs |
-| outs_recorded | integer | Total outs; used to assess pitcher workload and endurance |
 
-Primary key: (matchup_id, player_id)
+Primary key: (player_id, sim_date)
 
 ---
 
@@ -259,8 +260,8 @@ Weekly pitching stats from the period after lineup lock. Used to estimate plate 
 
 | Column | Type | Notes |
 |---|---|---|
-| matchup_id | UUID | FK to matchups.id |
 | player_id | integer | FK to players.mlb_id |
+| sim_date | date | |
 | bf | integer | Batters faced; used for appearance cap |
 | pitches_thrown | integer | Used for appearance cap |
 | singles | integer | |
@@ -273,15 +274,14 @@ Weekly pitching stats from the period after lineup lock. Used to estimate plate 
 | go | integer | |
 | fo | integer | |
 | po | integer | |
-| outs_recorded | integer | |
 
-Primary key: (matchup_id, player_id)
+Primary key: (player_id, sim_date)
 
 ---
 
 ## 5. Sim Results
 
-Written by the sim engine (structured data) and the text-generation component (description column).
+Written by the sim engine (structured data) and the text-generation component (description column on sim_events).
 
 ### sim_events
 Play-by-play event log. One row per plate appearance or notable in-game event.
@@ -294,35 +294,35 @@ Play-by-play event log. One row per plate appearance or notable in-game event.
 | half | half_inning | top or bottom |
 | sequence_number | integer | Ordering within the half-inning |
 | event_type | sim_event_type | |
-| batter_player_id | integer | FK to players.mlb_id; null for non-PA events |
 | pitcher_player_id | integer | FK to players.mlb_id; null for non-PA events |
 | description | text | Narrative text; written by the text-generation component, not the sim engine |
-| runs_scored | integer | Default 0 |
+| runs_scored | integer | Default 0; stored for query convenience though derivable from sim_event_runner_outcomes |
 | outs_before_play | integer | 0, 1, or 2 |
 
-Note: pre-play runner state is captured in `sim_event_runner_outcomes` via `base_before`, not stored on this table.
+Note: the batter is not stored directly on this table — they are identified as the row in `sim_event_runner_outcomes` where `base_before = 0`. Pre-play runner state is similarly captured there.
 
 ---
 
 ### sim_event_runner_outcomes
-One row per player (batter or baserunner) involved in a play. Captures what happened to each player during the event.
+One row per player (batter or baserunner) involved in a play. Captures both the pre-play base state and what happened to each player during the event.
 
 | Column | Type | Notes |
 |---|---|---|
 | sim_event_id | UUID | FK to sim_events.id |
-| player_id | integer | FK to players.mlb_id |
 | base_before | integer | 0 = batter, 1/2/3 = base occupied before the play |
+| player_id | integer | FK to players.mlb_id |
 | intermediate_base | integer | Nullable; a base safely reached before being put out |
 | final_base | integer | Nullable; 1/2/3/4 = scored if safe; null if put out |
 | putout_at_base | integer | Nullable; base at which the player was put out |
 | putout_type | putout_type | Nullable |
 
-Primary key: (sim_event_id, player_id)
+Primary key: (sim_event_id, base_before)
+Unique constraint: (sim_event_id, player_id)
 
 ---
 
 ### sim_batter_stats
-Per-batter stat line for each sim. Feeds the box score batting table.
+Per-batter stat line for each sim. Feeds the box score batting table. Derivable from the play-by-play; exact columns to be refined when the sim results display is built.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -345,7 +345,7 @@ Primary key: (matchup_id, player_id)
 ---
 
 ### sim_pitcher_stats
-Per-pitcher stat line for each sim. Feeds the box score pitching table.
+Per-pitcher stat line for each sim. Feeds the box score pitching table. Derivable from the play-by-play; exact columns and pitcher ordering to be refined when the sim results display is built.
 
 | Column | Type | Notes |
 |---|---|---|
