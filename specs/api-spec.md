@@ -271,7 +271,7 @@ Notes:
 - Batter stats (platoon splits) and pitcher stats (OBP allowed, SLG allowed) are drawn from pre-lock stats for the current week's sim date. See known limitation noted above.
 - OBP allowed = (singles + doubles + triples + hr + bb + hbp) / bf; SLG allowed = (singles + 2×doubles + 3×triples + 4×hr) / (bf − bb − hbp). Both use BF as a proxy for AB/PA, which is a minor approximation.
 - The bench excludes the SP and excludes pure pitchers (players with no non-Pitcher eligible positions)
-- The bullpen contains all Pitcher-eligible players on the roster who are not the SP; two-way players who are not the SP appear in both bench and bullpen
+- The bullpen contains all Pitcher-eligible players on the roster who are not the SP; two-way players who are not in the starting lineup (either as SP or in the batting order) appear in both bench and bullpen
 - `is_sp_eligible_this_week` is included only for Pitcher-eligible players
 - For the opponent's lineup, the same structure is returned but edits are not permitted
 
