@@ -6,14 +6,20 @@ All endpoints are served by the Node.js + Express API server. The web client is 
 
 **Base URL:** `/api/v1`
 
-**Authentication:** All endpoints require a valid Supabase JWT in the `Authorization: Bearer <token>` header unless noted otherwise. The API verifies the JWT with Supabase on every request.
+**Authentication:** All endpoints require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The API verifies the JWT with Supabase on every request.
+
+**Authorization:**
+- Any endpoint operating on league data requires the requester to be a member of that league
+- Any endpoint that modifies team data (lineup updates, roster changes) requires the requester to be the manager of that specific team
 
 **Conventions:**
 - All timestamps are ISO 8601 / UTC
 - Player IDs are integers (MLB IDs)
 - All other IDs are UUIDs
-- Deadline timestamps in responses are computed from `sim_scheduled_at` using hardcoded offsets; they are not stored in the database
+- Deadline timestamps in responses are computed from `sim_scheduled_at` using hardcoded offsets; they are not stored in the database. Deadline timestamps are always returned, even when the deadline has passed
 - Lock state is derived from the current time vs. the relevant deadline; it is not stored in the database
+
+**Known limitation:** Player stats included in lineup responses (platoon splits, OBP allowed, SLG allowed) are drawn from pre-lock stats captured at the batting order lock time. These may be up to a week out of date. A more frequently updated stats dataset is a post-MVP improvement.
 
 ---
 
@@ -48,6 +54,7 @@ Returns all leagues the current user belongs to (as manager or commissioner).
     "name": "string",
     "season_year": 2026,
     "roster_size": 22,
+    "commissioner": { "id": "uuid", "display_name": "string" },
     "my_team": {
       "id": "uuid",
       "name": "string"
@@ -101,10 +108,32 @@ Returns league details.
 
 ---
 
+#### GET /leagues/:id/matchups?week=:week_number
+Returns all matchups in the league for a given week. Defaults to the current week if the `week` parameter is omitted. Used for league scoreboard views.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "week_number": 11,
+    "sim_scheduled_at": "2026-06-10T01:00:00Z",
+    "sim_status": "scheduled",
+    "home_team": { "id": "uuid", "name": "string", "manager": { "id": "uuid", "display_name": "string" } },
+    "road_team": { "id": "uuid", "name": "string", "manager": { "id": "uuid", "display_name": "string" } },
+    "final_score": null
+  }
+]
+```
+
+`final_score` is null until `sim_status` is `sim_complete`, then `{ "home": 4, "road": 2 }`.
+
+---
+
 ### Teams
 
 #### GET /teams/:id/roster
-Returns the team's current roster with player details and eligible positions. Includes SP eligibility for the current week's matchup if one exists.
+Returns the team's current roster with player details and eligible positions.
 
 **Response:**
 ```json
@@ -125,11 +154,9 @@ Returns the team's current roster with player details and eligible positions. In
 }
 ```
 
-`is_sp_eligible_this_week` is false if the player started in either of the two preceding weeks' sims.
+`is_sp_eligible_this_week` is included only for players with Pitcher among their eligible positions. It is false if the player started in either of the two preceding weeks' sims.
 
 ---
-
-### Matchups
 
 #### GET /teams/:id/matchups
 Returns all matchups for the team's current season, ordered by week. Used to populate the home screen matchup list.
@@ -149,9 +176,9 @@ Returns all matchups for the team's current season, ordered by week. Used to pop
 ]
 ```
 
-`final_score` is null until `sim_status` is `sim_complete`, then `{ "home": 4, "road": 2 }`.
-
 ---
+
+### Matchups
 
 #### GET /matchups/:id
 Returns full matchup details including both teams' lineups. This is the primary data source for the Matchup Screen.
@@ -188,9 +215,10 @@ Returns full matchup details including both teams' lineups. This is the primary 
       "mlb_id": 123,
       "full_name": "string",
       "throws": "R",
-      "era": 2.45,
-      "whip": 0.98,
-      "k_per_9": 10.2
+      "eligible_positions": ["P", "DH"],
+      "is_sp_eligible_this_week": true,
+      "obp_allowed": 0.298,
+      "slg_allowed": 0.412
     },
     "is_locked": false,
     "locks_at": "2026-06-04T01:00:00Z"
@@ -222,15 +250,30 @@ Returns full matchup details including both teams' lineups. This is the primary 
         "vs_rhp": { ... }
       }
     }
+  ],
+  "bullpen": [
+    {
+      "player": {
+        "mlb_id": 321,
+        "full_name": "string",
+        "throws": "R",
+        "eligible_positions": ["P"],
+        "is_sp_eligible_this_week": true,
+        "obp_allowed": 0.310,
+        "slg_allowed": 0.445
+      }
+    }
   ]
 }
 ```
 
 Notes:
-- Stat figures in the lineup (ERA, WHIP, K/9, platoon splits) are drawn from `pre_lock` stats for the current week's sim date
-- The bench excludes the SP; pure pitchers (no non-Pitcher eligible positions) do not appear on the bench
+- Batter stats (platoon splits) and pitcher stats (OBP allowed, SLG allowed) are drawn from pre-lock stats for the current week's sim date. See known limitation noted above.
+- OBP allowed = (singles + doubles + triples + hr + bb + hbp) / bf; SLG allowed = (singles + 2×doubles + 3×triples + 4×hr) / (bf − bb − hbp). Both use BF as a proxy for AB/PA, which is a minor approximation.
+- The bench excludes the SP and excludes pure pitchers (players with no non-Pitcher eligible positions)
+- The bullpen contains all Pitcher-eligible players on the roster who are not the SP; two-way players who are not the SP appear in both bench and bullpen
+- `is_sp_eligible_this_week` is included only for Pitcher-eligible players
 - For the opponent's lineup, the same structure is returned but edits are not permitted
-- `locks_at` is null if already locked
 
 ---
 
@@ -275,7 +318,7 @@ Replaces the full batting order. The client sends all 9 slots; the server valida
 ```
 
 **Validation:**
-- Exactly 9 slots must be provided
+- Exactly 9 slots must be provided, each with a distinct batting position between 1 and 9
 - All players must be on the team's roster
 - Each player's assigned field_position must be among their eligible positions (excluding Pitcher, unless they are the SP and field_position is P)
 - No two slots may share a field_position
@@ -297,7 +340,6 @@ Returns the full sim results for a completed matchup. Available to all managers 
 
 **Errors:**
 - `404` — Matchup not found
-- `403` — Requester is not a member of the league
 - `409` — Sim has not yet run (`sim_status` is not `sim_complete`)
 
 **Response:**
