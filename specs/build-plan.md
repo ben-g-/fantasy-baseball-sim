@@ -44,7 +44,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 **Database**
 - Create all enums, tables, constraints, and indexes defined in the data model
 - Enable Row Level Security (RLS) on all tables; define initial policies
-- Enable Supabase Realtime on `matchups` and `lineups` tables. Supabase Realtime uses PostgreSQL logical replication to stream row-level changes to subscribed clients. Enabling it requires adding these tables to the Realtime publication in the Supabase dashboard. The frontend then subscribes to specific rows — e.g. the current matchup row (to detect `sim_status` changing to `sim_complete` and switch the Matchup Screen to post-sim mode) and the current lineup rows (to detect opponent lineup updates and lock state changes without polling)
+- Enable Supabase Realtime on `matchups`, `lineups`, and `lineup_batting_order` tables. Supabase Realtime uses PostgreSQL logical replication to stream row-level changes to subscribed clients. Enabling it requires adding these tables to the Realtime publication in the Supabase dashboard. The frontend then subscribes to specific rows — e.g. the current matchup row (to detect `sim_status` changing to `sim_complete` and switch the Matchup Screen to post-sim mode) and the current lineup and batting order rows (to detect opponent SP and batting order updates without polling). Note: lock state itself does not require Realtime — it is derived from deadline timestamps and can be computed locally with a countdown timer
 
 **Validation:** A user can sign up, log in, and receive a valid JWT. The database schema is fully in place. The API returns the user's profile via GET /me.
 
