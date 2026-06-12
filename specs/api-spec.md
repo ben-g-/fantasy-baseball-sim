@@ -148,6 +148,7 @@ Returns the team's current roster with player details and eligible positions.
       "bats": "R",
       "mlb_team": "LAD",
       "eligible_positions": ["P", "DH"],
+      "display_positions": ["P"],
       "is_sp_eligible_this_week": true
     }
   ]
@@ -216,6 +217,7 @@ Returns full matchup details including both teams' lineups. This is the primary 
       "full_name": "string",
       "throws": "R",
       "eligible_positions": ["P", "DH"],
+      "display_positions": ["P", "DH"],
       "is_sp_eligible_this_week": true,
       "obp_allowed": 0.298,
       "slg_allowed": 0.412
@@ -231,6 +233,7 @@ Returns full matchup details including both teams' lineups. This is the primary 
         "full_name": "string",
         "bats": "L",
         "eligible_positions": ["CF", "DH"],
+        "display_positions": ["CF"],
         "vs_lhp": { "pa": 120, "singles": 20, "doubles": 5, "triples": 0, "hr": 3, "bb": 12, "hbp": 1, "k": 25, "go": 30, "fo": 24 },
         "vs_rhp": { ... }
       },
@@ -246,6 +249,7 @@ Returns full matchup details including both teams' lineups. This is the primary 
         "full_name": "string",
         "bats": "R",
         "eligible_positions": ["1B", "DH"],
+        "display_positions": ["1B"],
         "vs_lhp": { ... },
         "vs_rhp": { ... }
       }
@@ -258,6 +262,7 @@ Returns full matchup details including both teams' lineups. This is the primary 
         "full_name": "string",
         "throws": "R",
         "eligible_positions": ["P"],
+        "display_positions": ["P"],
         "is_sp_eligible_this_week": true,
         "obp_allowed": 0.310,
         "slg_allowed": 0.445
@@ -268,6 +273,8 @@ Returns full matchup details including both teams' lineups. This is the primary 
 ```
 
 Notes:
+- `eligible_positions` contains all positions the player may be assigned in the lineup, including DH added programmatically for all batter-eligible players. The frontend uses this for the field position picker and for lineup validation.
+- `display_positions` contains only positions sourced from the MLB Stats API. The frontend uses this for player card display. DH appears in `display_positions` only if the API explicitly lists it, indicating the player regularly DHs in real life.
 - Batter stats (platoon splits) and pitcher stats (OBP allowed, SLG allowed) are drawn from pre-lock stats for the current week's sim date. See known limitation noted above.
 - OBP allowed = (singles + doubles + triples + hr + bb + hbp) / bf; SLG allowed = (singles + 2×doubles + 3×triples + 4×hr) / (bf − bb − hbp). Both use BF as a proxy for AB/PA, which is a minor approximation.
 - The bench excludes the SP and excludes pure pitchers (players with no non-Pitcher eligible positions)
