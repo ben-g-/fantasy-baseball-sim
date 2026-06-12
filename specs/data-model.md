@@ -93,8 +93,11 @@ Eligible fantasy positions for each player. A player may have multiple rows (e.g
 |---|---|---|
 | player_id | integer | FK to players.mlb_id |
 | position | field_position | One row per eligible position |
+| source | text | `api` if sourced from the MLB Stats API; `derived` if added programmatically (e.g. DH added for all batter-eligible players) |
 
 Primary key: (player_id, position)
+
+Note: the `source` column drives display logic. Player cards show only positions where `source = 'api'`. All positions regardless of source are used for lineup eligibility logic (e.g. the field position picker shows both). This means DH appears on a player card only if the MLB Stats API explicitly lists it, indicating the player regularly DHs in real life.
 
 ---
 

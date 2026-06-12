@@ -59,7 +59,9 @@ These are defined here rather than in the codebase so they are easy to find and 
 **Data pipeline (Python)**
 - Build MLB Stats API client (Python) targeting `statsapi.mlb.com`
 - Ingest all active MLB players: mlb_id, full_name, last_name, throws, bats, mlb_team
-- Ingest eligible fantasy positions for each player and populate `player_positions`
+- Ingest eligible fantasy positions for each player and populate `player_positions` with `source = 'api'`
+- For every batter-eligible player (any player with at least one non-Pitcher position from the API), also insert a DH row with `source = 'derived'` if DH is not already present. Pure pitchers (Pitcher as their only eligible position) do not get DH added
+- Player cards display only positions where `source = 'api'`; all positions regardless of source are used for lineup eligibility logic
 - Schedule pipeline to run weekly (ECS scheduled task or Lambda)
 
 **Seed data for development**
