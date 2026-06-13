@@ -165,7 +165,7 @@ Primary key: (lineup_id, batting_position)
 Unique constraint: (lineup_id, player_id) — a player cannot appear twice in the batting order
 Unique constraint: (lineup_id, field_position) — no two batters may share a field position
 
-**Two-way player note:** If the SP is batting, a row exists for him in this table with field_position = P. If a DH is used instead, no such row exists for the SP, and a batter occupies one slot with field_position = DH. These two states are mutually exclusive.
+**SP batting note:** Any SP (not only two-way players) may occupy a batting slot in this table with field_position = P, in lieu of a DH. If a DH is used instead, no such row exists for the SP, and a batter occupies one slot with field_position = DH. These two states are mutually exclusive. A two-way player who is the SP may only occupy the P slot; he may not occupy a non-Pitcher position slot while also serving as SP.
 
 ---
 

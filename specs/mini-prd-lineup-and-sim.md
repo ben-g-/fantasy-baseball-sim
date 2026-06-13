@@ -22,13 +22,14 @@ A season-long fantasy baseball league where weekly head-to-head matchups are res
 
 ## Two-Way Players
 
-A player's eligible positions can include both Pitcher and one or more non-Pitcher positions simultaneously (e.g. Shohei Ohtani: SP, DH).
+A **two-way player** is a player whose eligible positions include both Pitcher and at least one non-Pitcher position (e.g. Shohei Ohtani: SP, DH). This is distinct from a regular pitcher, who has only Pitcher as an eligible position.
 
-- A player whose eligible positions include Pitcher can be selected as the SP
-- A player whose eligible positions include at least one non-Pitcher position can be inserted into the batting order in one of those positions — **unless** he is the SP
-- If the SP is a two-way player, the manager may choose to insert him into the batting order in a **Pitcher** batting slot, in lieu of using a DH
-- Use of a DH is therefore optional; the batting order can contain either a DH or the SP batting as Pitcher, but not both
-- If the SP is batting and is replaced on the mound by a reliever, the AI manager may transition him to DH rather than replacing him in the batting order with the reliever
+- Any player whose eligible positions include Pitcher can be selected as the SP
+- The manager may insert the SP into the batting order in a **Pitcher (P)** batting slot, in lieu of using a DH. This applies to any SP — not only two-way players
+- A two-way player who is **not** the SP may be inserted into the batting order at one of his non-Pitcher eligible positions
+- A two-way player who **is** the SP may only occupy the P batting slot in the batting order, not a non-Pitcher position
+- Use of a DH is therefore optional; the batting order can contain either a DH or the SP in the P slot, but not both
+- If the SP is in the P batting slot and is replaced on the mound by a reliever, the AI manager may transition him to DH (only if he is a two-way player and therefore DH-eligible) rather than replacing him in the batting order with the reliever. A pure pitcher removed from the mound is replaced in the batting order by a bench player.
 
 ---
 

@@ -98,6 +98,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Field position picker per slot (inline dropdown)
 - Inline validation highlighting with hover tooltips
 - Unsaved changes indicator; auto-save on valid state; silent revert on navigation away
+- SP-switching rules: when a new SP is selected, if the old SP was in the P batting slot, the new SP automatically takes that slot; if the new SP was in the batting order at a non-Pitcher position, his field_position automatically changes to P, and lineup validity is re-evaluated (clean if he was DH; invalid if he was at a defensive position, for the manager to resolve). Note: a new SP who was the DH and an old SP in the P slot cannot coexist in a valid saved lineup, so this scenario only arises from an already-invalid unsaved state
 - Supabase Realtime subscription: update lock state when deadline passes without page refresh
 
 **Frontend — Home Screen**
@@ -119,6 +120,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Implement core plate appearance resolution:
   - Probability model: derive outcome probabilities (single, double, triple, HR, BB, HBP, K, GO, FO) from post-lock batter and pitcher stats using a log5-style combination
   - Use seeded placeholder stats for post-lock stats in this phase
+- Special handling for any player in the P batting slot: auto-out every PA with varied out type (approximately 20% strikeout, 45% groundout, 35% flyout); PA appearance cap does not apply. This reflects that pitchers essentially never have meaningful batting stats in the current universal DH era
 - Implement base-running resolution (stolen bases, runner advancement on hits)
 - Implement player appearance cap logic:
   - Batters: PA cap table (0→0, 1–3→1, 4–6→2, 7–9→3, 10+→unlimited)
@@ -126,7 +128,7 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Players with 0 appearances unavailable; narrative note for mid-game removals
 - Implement AI manager:
   - Pitcher management: enforce appearance caps; reliever sequencing in order of availability
-  - DH transition: if SP is batting and pulled from pitching, transition to DH
+  - DH transition: if SP is in the P batting slot and is pulled from pitching, transition him to DH if he is a two-way player (DH-eligible); otherwise replace him in the batting order with a bench player
   - Batter substitution: replace capped batters from bench
   - Use pre-lock stats (seeded placeholders) for AI manager decisions
 - Write play-by-play events and runner outcomes to `sim_events` and `sim_event_runner_outcomes`
