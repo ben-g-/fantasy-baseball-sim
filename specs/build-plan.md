@@ -118,7 +118,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Set up Python FastAPI service
 - Implement BullMQ Redis consumer (Python worker picks up sim jobs)
 - Implement core plate appearance resolution:
-  - Probability model: derive outcome probabilities (single, double, triple, HR, BB, HBP, K, GO, FO) from post-lock batter and pitcher stats using a log5-style combination
+  - Probability model: derive outcome probabilities (single, double, triple, HR, BB, HBP, K, GO, FO) from post-lock batter and pitcher stats using a log5-style combination, then apply platoon adjustment factors derived from pre-lock splits. For each outcome, the adjustment factor is the ratio of the relevant pre-lock split rate (vs. LHP or vs. RHP for batters; vs. LHB or vs. RHB for pitchers) to the pre-lock overall rate. This makes handedness matchups consequential in the sim without requiring platoon splits in the post-lock stats
   - Use seeded placeholder stats for post-lock stats in this phase
 - Special handling for any pure pitcher in the P batting slot: auto-out every PA with varied out type (approximately 20% strikeout, 45% groundout, 35% flyout); PA appearance cap does not apply. Two-way players in the P slot are simulated normally using their real batting stats. This reflects that pure pitchers essentially never have meaningful batting stats in the current universal DH era
 - Implement base-running resolution (stolen bases, runner advancement on hits)
