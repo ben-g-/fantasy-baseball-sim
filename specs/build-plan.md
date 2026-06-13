@@ -68,7 +68,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Create a seed script that inserts:
   - Two test leagues of different sizes (e.g. 10 and 12 teams) to illustrate that league size can vary
   - Two real test manager accounts (each in both leagues) plus placeholder bot managers filling the remaining slots in each league (8 in the 10-team league, 10 in the 12-team league)
-  - Realistic 22-player rosters for each team drawn from the players table
+  - Realistic 22-player rosters for each team drawn from the players table; Shohei Ohtani must be included on one of the human-managed teams to enable interactive testing of two-way player logic
   - A matchup schedule for the current season
   - Default lineups for the current week's matchup
 
