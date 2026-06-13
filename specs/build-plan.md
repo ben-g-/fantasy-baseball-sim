@@ -124,7 +124,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Implement base-running resolution (stolen bases, runner advancement on hits)
 - Implement player appearance cap logic:
   - Batters: PA cap table (0→0, 1–3→1, 4–6→2, 7–9→3, 10+→unlimited)
-  - Pitchers: compelled removal when exceeding 110% of real-life BF AND pitches thrown (AND condition)
+  - Pitchers: compelled removal when exceeding 110% of real-life BF AND pitches thrown (AND condition). The sim engine must simulate a pitch count for each plate appearance so the running total can be tracked and compared against the threshold
   - Players with 0 appearances unavailable; narrative note for mid-game removals
 - Implement AI manager:
   - Pitcher management: enforce appearance caps; reliever sequencing in order of availability
