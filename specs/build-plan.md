@@ -169,6 +169,7 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Platoon splits: vs_lhp_* and vs_rhp_* variants (excluding sb, cs)
 - Ingest and store `pitcher_pre_lock_stats` at batting order lock time:
   - Counting stats: bf, pitches_thrown, singles, doubles, triples, hr, bb, hbp, k, go, fo, po
+  - Platoon splits: vs_lhb_* and vs_rhb_* variants of the counting stats above (excluding po), e.g. `vs_lhb_bf`, `vs_lhb_k`, `vs_rhb_hr`, etc.
 - Ingest and store `batter_post_lock_stats` and `pitcher_post_lock_stats` just before sim fires:
   - Same stat sets as above; keyed by (player_id, sim_date)
 - Trigger post-lock ingestion as part of the sim dispatch pipeline, before enqueuing sim jobs
