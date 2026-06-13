@@ -81,7 +81,7 @@ The central screen for this scenario. The manager reaches this by clicking their
 
 **Common elements (both modes):**
 - Header: week number, matchup dates, sim run date/time (e.g. "Week 11 · Sim runs Tue Jun 10, 9:00 PM")
-- Both team names and manager names
+- Both team names and manager names, each clearly labelled as Home or Road
 
 ---
 

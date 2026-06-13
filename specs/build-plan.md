@@ -89,7 +89,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - GET /teams/:id/matchups — for home screen matchup list
 
 **Frontend — Matchup Screen (pre-sim mode)**
-- Two-column lineup panel (own lineup editable, opponent read-only)
+- Two-column lineup panel (own lineup editable, opponent read-only); each column clearly labelled as Home or Road
 - SP slot with lock status and countdown to deadline
 - Batting order slots 1–9 with field position display
 - Bench and bullpen sections
@@ -102,7 +102,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Supabase Realtime subscription: update lock state when deadline passes without page refresh
 
 **Frontend — Home Screen**
-- Matchup card for current week showing both teams, sim date, and "action required" indicator if deadline is approaching
+- Matchup card for current week showing both teams with Home/Road labels, sim date, and "action required" indicator if deadline is approaching
 
 **Validation:** A manager can log in, see their current matchup, change their SP, rearrange their batting order, assign field positions, and have the lineup auto-save. The opponent's lineup is visible in read-only form. Lock state updates automatically when a deadline passes.
 
