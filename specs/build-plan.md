@@ -66,13 +66,13 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 **Seed data for development**
 - Create a seed script that inserts:
-  - Two test leagues, each with 10 teams
+  - Two test leagues of different sizes (e.g. 10 and 12 teams) to illustrate that league size can vary
   - Two real test manager accounts (each in both leagues) plus 8 placeholder bot managers per league (to simulate a realistic league without requiring 10 real users)
   - Realistic 22-player rosters for each team drawn from the players table
   - A matchup schedule for the current season
   - Default lineups for the current week's matchup
 
-**Validation:** The database contains real MLB players with correct eligible positions. Seed script produces a fully populated development environment with two managers, two teams, rosters, a matchup, and default lineups — without requiring a draft or league management UI.
+**Validation:** The database contains real MLB players with correct eligible positions. Seed script produces a fully populated development environment with two leagues of different sizes (e.g. 10 and 12 teams), two real test manager accounts in both leagues, placeholder bot managers filling remaining slots, realistic rosters for all teams, a matchup schedule for the current season, and default lineups for the current week's matchups — without requiring a draft or league management UI.
 
 ---
 
