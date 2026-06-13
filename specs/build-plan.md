@@ -120,7 +120,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Implement core plate appearance resolution:
   - Probability model: derive outcome probabilities (single, double, triple, HR, BB, HBP, K, GO, FO) from post-lock batter and pitcher stats using a log5-style combination
   - Use seeded placeholder stats for post-lock stats in this phase
-- Special handling for any player in the P batting slot: auto-out every PA with varied out type (approximately 20% strikeout, 45% groundout, 35% flyout); PA appearance cap does not apply. This reflects that pitchers essentially never have meaningful batting stats in the current universal DH era
+- Special handling for any pure pitcher in the P batting slot: auto-out every PA with varied out type (approximately 20% strikeout, 45% groundout, 35% flyout); PA appearance cap does not apply. Two-way players in the P slot are simulated normally using their real batting stats. This reflects that pure pitchers essentially never have meaningful batting stats in the current universal DH era
 - Implement base-running resolution (stolen bases, runner advancement on hits)
 - Implement player appearance cap logic:
   - Batters: PA cap table (0→0, 1–3→1, 4–6→2, 7–9→3, 10+→unlimited)
