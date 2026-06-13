@@ -128,7 +128,7 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Players with 0 appearances unavailable; narrative note for mid-game removals
 - Implement AI manager:
   - Pitcher management: enforce appearance caps; reliever sequencing in order of availability
-  - DH transition: if SP is in the P batting slot and is pulled from pitching, transition him to DH if he is a two-way player (DH-eligible); otherwise replace him in the batting order with a bench player
+  - DH transition: if SP is in the P batting slot and is pulled from pitching, transition him to DH if he is a two-way player (DH-eligible); otherwise the incoming reliever takes the P batting slot
   - Batter substitution: replace capped batters from bench
   - Use pre-lock stats (seeded placeholders) for AI manager decisions
 - Write play-by-play events and runner outcomes to `sim_events` and `sim_event_runner_outcomes`

@@ -29,7 +29,7 @@ A **two-way player** is a player whose eligible positions include both Pitcher a
 - A two-way player who is **not** the SP may be inserted into the batting order at one of his non-Pitcher eligible positions
 - A two-way player who **is** the SP may only occupy the P batting slot in the batting order, not a non-Pitcher position
 - Use of a DH is therefore optional; the batting order can contain either a DH or the SP in the P slot, but not both
-- If the SP is in the P batting slot and is replaced on the mound by a reliever, the AI manager may transition him to DH (only if he is a two-way player and therefore DH-eligible) rather than replacing him in the batting order with the reliever. A pure pitcher removed from the mound is replaced in the batting order by a bench player.
+- If the SP is in the P batting slot and is replaced on the mound by a reliever, the AI manager may transition him to DH (only if he is a two-way player and therefore DH-eligible). Otherwise the incoming reliever takes over the P batting slot.
 
 ---
 
