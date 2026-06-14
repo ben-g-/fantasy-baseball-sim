@@ -10,13 +10,15 @@ Phases 1–5 focus on getting that scenario working end-to-end. Phases 6–7 bui
 
 ## Hardcoded Deadline Offsets
 
-Lineup lock deadlines are computed from `sim_scheduled_at` using these fixed offsets:
+Lineup lock deadlines are computed from `sim_scheduled_at` using these fixed offsets. All deadlines must fall before the first MLB game of the relevant day.
 
-| Deadline | Offset from sim time |
-|---|---|
-| Road team SP deadline | − 7 days |
-| Home team SP deadline | − 6 days |
-| Batting order deadline | − 2 days |
+| Deadline | Offset from sim time | Time (ET) |
+|---|---|---|
+| Road team SP deadline | − 8 days | 6:00 PM |
+| Home team SP deadline | − 8 days | 9:00 PM |
+| Batting order deadline | − 7 days | 12:00 PM |
+
+Example with a Tuesday 11pm ET sim: road SP locks previous Monday at 6pm, home SP locks previous Monday at 9pm, batting order locks the following Tuesday at noon.
 
 These are defined here rather than in the codebase so they are easy to find and change. They should be stored as named constants in the API server.
 

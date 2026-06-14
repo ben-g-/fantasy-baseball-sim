@@ -35,12 +35,12 @@ A **two-way player** is a player whose eligible positions include both Pitcher a
 
 ## Scenario Overview
 
-Each weekly matchup has two lineup-locking phases, both occurring **the week before the sim runs**:
+Each weekly matchup has two lineup-locking phases, both occurring **before the week's MLB games begin**:
 
-| Phase | What locks | Notes |
+| Phase | What locks | Deadline |
 |---|---|---|
-| Phase 1 | Starting pitcher | Road team deadline is earlier than home team deadline |
-| Phase 2 | Batting order + field positions | Both teams share the same deadline |
+| Phase 1 | Starting pitcher | Road team: 8 days before sim at 6pm ET; home team: 8 days before sim at 9pm ET |
+| Phase 2 | Batting order + field positions | Both teams: 7 days before sim at 12pm ET |
 
 The sim runs on a **fixed weekly schedule** (e.g. every Tuesday night). After it runs, all managers in the league can view the results.
 
