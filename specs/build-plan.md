@@ -205,7 +205,8 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Trigger: when the previous week's batting order deadline passes and lineups lock, the system generates default lineups for the next week's matchup for each team. At this point the next week's Matchup Screen also becomes viewable
 - SP default: most recently started pitcher among eligible pitchers
 - Batting order default: same as the just-locked lineup
-- Week 1 exception: no previous lineup exists, so defaults are generated at season start using a fallback heuristic (most recently active pitcher as SP default; alphabetical batting order)
+- Week 1–3 exception for SP: for the first three weeks, no eligible pitcher has a sim start history yet (the "most recently started among eligible" rule requires at least one eligible pitcher to have started a sim, which isn't possible until week 4 given the 3-man rotation constraint). Use the first pitcher-eligible player alphabetically as the SP default. The manager is expected to review and change this.
+- Week 1 exception for batting order: no previous lineup exists, so use alphabetical order as the batting order default
 
 **League invitation flow**
 - Invite managers to a league via email link
