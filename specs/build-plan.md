@@ -185,7 +185,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ## Phase 6: League & Team Management
 
-**Goal:** Managers can create leagues, invite other managers, and navigate the full app without relying on seed data.
+**Goal:** Managers can create leagues, invite other managers, and navigate the league and team management features without relying on seed data. Rosters continue to rely on seed data until the draft is built in Phase 7.
 
 ### Tasks
 
@@ -215,7 +215,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Team roster view
 - Navigation: league switcher, home screen per league
 
-**Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup without seed data.
+**Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup. League and team structure no longer requires seed data; rosters still depend on it pending the draft in Phase 7.
 
 ---
 
