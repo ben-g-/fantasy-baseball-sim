@@ -212,7 +212,6 @@ These are defined here rather than in the codebase so they are easy to find and 
 **Frontend**
 - League creation screen
 - League dashboard: team list, current week's matchups (all matchups in the league)
-- Team roster view
 - Navigation: league switcher, home screen per league
 
 **Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup. League and team structure no longer requires seed data; rosters still depend on it pending the draft in Phase 7.
@@ -254,5 +253,6 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Configurable deadline offsets per league
 - Multi-game series matchups
 - ERA/WHIP/K9 display (requires adding `outs_recorded` and `er` to pitcher stats tables)
+- Standalone team roster view (not yet designed)
 - Pitcher ordering in box score
 - Push notifications
