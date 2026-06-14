@@ -151,7 +151,7 @@ Accessed by clicking the SP slot in the manager's own column (only before the SP
 **Layout:**
 - Modal or slide-up panel
 - Lists all Pitcher-eligible players on the manager's roster
-- Each player card shows: name, key stats (ERA, WHIP, K/9), handedness (L/R)
+- Each player card shows: name, key stats (OBP allowed, SLG allowed), handedness (L/R)
 - Ineligible players (started in either of the two preceding weeks) are shown but greyed out with a label such as "Started Week 9 — unavailable"
 - The currently selected (default) SP is highlighted
 - Clicking an eligible player selects them and returns to the Matchup Screen
