@@ -365,13 +365,23 @@ Returns the full sim results for a completed matchup. Available to all managers 
       "batting": [
         {
           "player": { "mlb_id": 123, "full_name": "string" },
-          "batting_position": 1,
+          "batting_order_position": 1,
+          "sequence_within_spot": 1,
+          "positions": ["CF"],
           "ab": 4, "r": 1, "h": 2, "doubles": 1, "triples": 0, "hr": 0, "rbi": 1, "bb": 0, "k": 1, "sb": 0
+        },
+        {
+          "player": { "mlb_id": 124, "full_name": "string" },
+          "batting_order_position": 1,
+          "sequence_within_spot": 2,
+          "positions": ["PH", "LF"],
+          "ab": 1, "r": 0, "h": 0, "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0, "k": 1, "sb": 0
         }
       ],
       "pitching": [
         {
           "player": { "mlb_id": 456, "full_name": "string" },
+          "pitching_sequence": 1,
           "outs_recorded": 18,
           "h": 5, "r": 1, "er": 1, "bb": 2, "k": 7, "hr": 0
         }

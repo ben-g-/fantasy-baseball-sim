@@ -30,6 +30,7 @@ Communication between layers:
 | Cache | Redis |
 | Job queue | BullMQ (Redis-backed) |
 | Sim engine | Python (FastAPI wrapper + simulation logic) |
+| Text generation | Python module (post-sim step within sim service) |
 | Stat modeling | NumPy, pandas, pybaseball |
 | Data pipeline | Python scripts (scheduled) |
 
@@ -61,9 +62,20 @@ Responsibilities:
 Responsibilities:
 - Exposes a lightweight FastAPI service; not called directly by the web client
 - Consumes sim jobs from the BullMQ queue via a Python worker
-- For each job: fetches the locked lineups, full rosters (bench and bullpen players are needed for AI manager substitutions), and the relevant weekly stats from PostgreSQL, then runs the simulation and writes the play-by-play event log and box score back to PostgreSQL
+- For each job: fetches the locked lineups, full rosters (bench and bullpen players are needed for AI manager substitutions), and the relevant weekly stats from PostgreSQL, then runs the simulation and writes the structured play-by-play event log and box score back to PostgreSQL
 - Simulation logic uses a probabilistic, stat-driven model (see Simulation Design below)
 - AI manager logic (pitching changes, DH transitions, substitutions for unavailable players) is implemented here
+- After the sim completes, triggers the text-generation step (see below) before marking the matchup as `sim_complete`
+
+### Text-Generation Component (Python)
+
+A lightweight Python module that runs as a post-sim step within the same Python service as the sim engine. It is not a separate service.
+
+Responsibilities:
+- Reads structured sim events from `sim_events` and `sim_event_runner_outcomes`
+- Generates a natural-language description for each event using templates (e.g. "Shohei Ohtani homers to left — 2 runs score", "[Reliever] replaces [Pitcher] pitching")
+- Writes the generated descriptions to the `description` column of `sim_events`
+- Keeping text generation separate from the sim engine preserves a clean separation of concerns: the sim engine produces structured facts; the text-generation step turns them into readable narrative
 
 ### Job Queue (BullMQ + Redis)
 
