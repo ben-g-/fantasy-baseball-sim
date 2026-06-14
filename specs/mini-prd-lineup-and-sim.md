@@ -97,6 +97,7 @@ The central screen for this scenario. The manager reaches this by clicking their
   - SP slot (top): player name, key stats, lock status
   - Batting order slots 1–9: batting order number, player name, field position
   - Bench: rostered players that are eligible to play a non-Pitcher position and are not in the starting lineup (excludes the SP, who is never shown on the bench)
+  - Bullpen: all Pitcher-eligible players on the roster who are not the SP and not in the starting lineup; two-way players who are not in the starting lineup appear in both bench and bullpen
 
 **Lineup slot states:**
 
