@@ -229,17 +229,19 @@ Each at-bat is resolved by sampling from a probability distribution derived from
 
 ## Infrastructure
 
-All components run on AWS for MVP:
+**Render** is recommended for MVP. It supports Node.js services, Python Docker containers, and managed Redis natively, with deployment via GitHub push and minimal configuration overhead. This is significantly simpler than AWS for a small team and allows engineering effort to stay focused on the sim engine and product rather than infrastructure setup.
 
-| Component | Service |
+| Component | Render Service |
 |---|---|
-| Web client | S3 + CloudFront (static hosting) |
-| API server | ECS (Docker container) |
-| Sim engine | ECS (Docker container, separate service) |
-| Database | Supabase (hosted PostgreSQL) |
-| Redis | ElastiCache |
-| Job queue | BullMQ on ElastiCache Redis |
-| Data pipeline | ECS scheduled tasks (or Lambda for simplicity) |
+| Web client | Static site (S3-equivalent, built-in) |
+| API server | Web service (Node.js) |
+| Sim engine | Web service (Python Docker container) |
+| Database | Supabase (external managed PostgreSQL) |
+| Redis | Managed Redis (Render add-on) |
+| Job queue | BullMQ on Render managed Redis |
+| Data pipeline | Cron job service (Python Docker container) |
+
+**Migration path:** If the product scales beyond Render's cost-effective range, migrating to AWS (ECS for containers, ElastiCache for Redis, S3 + CloudFront for static hosting) is straightforward since all components are containerized. This migration is a post-MVP concern.
 
 ---
 

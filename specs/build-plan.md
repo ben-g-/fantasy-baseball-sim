@@ -64,7 +64,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Ingest eligible fantasy positions for each player and populate `player_positions` with `source = 'api'`
 - For every batter-eligible player (any player with at least one non-Pitcher position from the API), also insert a DH row with `source = 'derived'` if DH is not already present. Pure pitchers (Pitcher as their only eligible position) do not get DH added
 - Player cards display only positions where `source = 'api'`; all positions regardless of source are used for lineup eligibility logic
-- Schedule pipeline to run weekly (ECS scheduled task or Lambda)
+- Schedule pipeline to run weekly (Render cron job service)
 
 **Seed data for development**
 - Create a seed script that inserts:
