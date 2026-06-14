@@ -283,7 +283,7 @@ Notes:
 - `is_sp_eligible_this_week` is included only for Pitcher-eligible players
 - For the opponent's lineup, the same structure is returned but edits are not permitted
 - Any league member may access this endpoint, not only the two participating teams. For a non-participating manager, both lineup columns are read-only
-- `my_team_id` identifies which team belongs to the requesting user; null for non-participating managers. The frontend uses this to determine column order: the requesting manager's team on the left if participating, otherwise the home team on the left
+- `my_team_id` identifies which team belongs to the requesting user; null for non-participating managers. The frontend uses this to determine column order (the requesting manager's team on the left if participating, otherwise the home team on the left) and whether the left column is editable (editable only if `my_team_id` is non-null and the relevant deadline has not passed)
 
 ---
 
