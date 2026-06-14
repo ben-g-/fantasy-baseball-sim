@@ -23,6 +23,7 @@ Communication between layers:
 | Component | Technology |
 |---|---|
 | Web client | Vue |
+| Component library | PrimeVue |
 | API server | Node.js + Express |
 | Auth | Supabase Auth (JWT, Google/Apple OAuth) |
 | Database | PostgreSQL via Supabase |
