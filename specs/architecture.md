@@ -4,7 +4,7 @@
 
 The system has four primary layers:
 
-1. **Web client** — React SPA (desktop web, MVP)
+1. **Web client** — Vue SPA (desktop web, MVP)
 2. **API server** — Node.js + Express, handles all application logic and data access
 3. **Sim engine** — Python service, executes game simulations
 4. **Data store** — PostgreSQL via Supabase
@@ -22,7 +22,7 @@ Communication between layers:
 
 | Component | Technology |
 |---|---|
-| Web client | React |
+| Web client | Vue |
 | API server | Node.js + Express |
 | Auth | Supabase Auth (JWT, Google/Apple OAuth) |
 | Database | PostgreSQL via Supabase |
@@ -36,7 +36,7 @@ Communication between layers:
 
 ## Components
 
-### Web Client (React)
+### Web Client (Vue)
 
 Responsibilities:
 - Render the Matchup Screen in pre-sim and post-sim modes

@@ -33,7 +33,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 **Deployment**
 - Create Supabase project; configure environment variables
 - Scaffold Node.js + Express API project with TypeScript
-- Scaffold React frontend project
+- Scaffold Vue frontend project (using Vite)
 - Set up Docker Compose for local development (Node.js API, Python sim service)
 - Configure ESLint, Prettier, and basic CI
 
