@@ -201,9 +201,11 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Generates all matchup records with `sim_scheduled_at` timestamps for the season
 
 **Default lineup generation**
-- When a matchup is created, auto-generate default lineups for each team:
-  - SP default: most recently started pitcher among eligible pitchers
-  - Batting order default: same as previous sim (or alphabetical for first matchup of season)
+- Default lineups are generated lazily, not at season start when matchups are created
+- Trigger: when the previous week's batting order deadline passes and lineups lock, the system generates default lineups for the next week's matchup for each team. At this point the next week's Matchup Screen also becomes viewable
+- SP default: most recently started pitcher among eligible pitchers
+- Batting order default: same as the just-locked lineup
+- Week 1 exception: no previous lineup exists, so defaults are generated at season start using a fallback heuristic (most recently active pitcher as SP default; alphabetical batting order)
 
 **League invitation flow**
 - Invite managers to a league via email link
