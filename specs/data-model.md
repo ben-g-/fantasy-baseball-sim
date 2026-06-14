@@ -334,6 +334,8 @@ Per-batter stat line for each sim. Feeds the box score batting table. Derivable 
 | matchup_id | UUID | FK to matchups.id |
 | team_id | UUID | FK to teams.id |
 | player_id | integer | FK to players.mlb_id |
+| batting_order_position | integer | 1–9; the lineup spot this player occupies |
+| sequence_within_spot | integer | 1 = original batter in this spot; 2+ = substitutes in order of appearance; players with sequence > 1 are indented in the box score |
 | ab | integer | |
 | r | integer | Runs scored |
 | h | integer | |
@@ -346,6 +348,20 @@ Per-batter stat line for each sim. Feeds the box score batting table. Derivable 
 | sb | integer | |
 
 Primary key: (matchup_id, player_id)
+
+---
+
+### sim_batter_positions
+Tracks the sequence of fielding positions each batter played during the sim. Feeds the position display in the box score (e.g. "CF-LF" for a player who started in center and moved to left).
+
+| Column | Type | Notes |
+|---|---|---|
+| matchup_id | UUID | FK to matchups.id |
+| player_id | integer | FK to players.mlb_id |
+| position_sequence | integer | 1 = first position played, 2 = second, etc. |
+| field_position | field_position | |
+
+Primary key: (matchup_id, player_id, position_sequence)
 
 ---
 
@@ -398,5 +414,5 @@ Primary key: (matchup_id, team_id, inning)
 | lineups, lineup_batting_order | Platform (defaults at matchup creation); user action (edits) |
 | batter_pre_lock_stats, pitcher_pre_lock_stats | Data pipeline (captured at batting order lock time) |
 | batter_post_lock_stats, pitcher_post_lock_stats | Data pipeline (captured just before sim runs) |
-| sim_events, sim_event_runner_outcomes, sim_batter_stats, sim_pitcher_stats, sim_line_score | Sim engine (structured data) and text-generation component (description column) |
+| sim_events, sim_event_runner_outcomes, sim_batter_stats, sim_batter_positions, sim_pitcher_stats, sim_line_score | Sim engine (structured data) and text-generation component (description column) |
 | matchups.sim_status | Sim engine (updates to sim_pending, then sim_complete) |
