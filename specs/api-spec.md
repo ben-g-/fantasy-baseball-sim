@@ -191,6 +191,7 @@ Returns full matchup details including both teams' lineups. This is the primary 
   "week_number": 11,
   "sim_scheduled_at": "2026-06-10T01:00:00Z",
   "sim_status": "scheduled",
+  "my_team_id": "uuid or null",
   "deadlines": {
     "road_sp": "2026-06-03T01:00:00Z",
     "home_sp": "2026-06-04T01:00:00Z",
@@ -282,6 +283,7 @@ Notes:
 - `is_sp_eligible_this_week` is included only for Pitcher-eligible players
 - For the opponent's lineup, the same structure is returned but edits are not permitted
 - Any league member may access this endpoint, not only the two participating teams. For a non-participating manager, both lineup columns are read-only
+- `my_team_id` identifies which team belongs to the requesting user; null for non-participating managers. The frontend uses this to determine column order: the requesting manager's team on the left if participating, otherwise the home team on the left
 
 ---
 

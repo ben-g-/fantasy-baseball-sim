@@ -91,8 +91,9 @@ The central screen for this scenario. The manager reaches this by clicking their
 - Next upcoming deadline with countdown (e.g. "SP locks in 2d 4h 12m")
 - Unsaved changes indicator: visible when local edits differ from last saved valid state
 - Two-column lineup panel:
-  - Left column: manager's own lineup (editable)
-  - Right column: opponent's lineup (read-only)
+  - Left column: the requesting manager's own team if they are a participant; otherwise the home team
+  - Right column: the other team
+  - Each column clearly labelled as Home or Road
 - Each column shows:
   - SP slot (top): player name, key stats, lock status
   - Batting order slots 1–9: batting order number, player name, field position
