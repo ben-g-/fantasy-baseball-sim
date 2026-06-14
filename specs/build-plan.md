@@ -72,7 +72,15 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Two real test manager accounts (each in both leagues) plus placeholder bot managers filling the remaining slots in each league (8 in the 10-team league, 10 in the 12-team league)
   - Realistic 22-player rosters for each team drawn from the players table; Shohei Ohtani must be included on one of the human-managed teams to enable interactive testing of two-way player logic
   - A matchup schedule for the current season
-  - Default lineups for the current week's matchup
+  - Multiple matchups in pre-configured states to allow testing any screen without waiting for real time to pass:
+    - One matchup with SP deadline upcoming (lineups unlocked)
+    - One matchup with SP deadline passed, batting order deadline upcoming
+    - One matchup fully locked, awaiting sim
+    - One matchup post-sim with seeded play-by-play results and box score
+
+**Dev-only utilities** (not exposed in production)
+- Manual sim trigger endpoint: immediately runs the sim for a specified matchup, bypassing the cron schedule
+- Deadline override endpoint: sets a matchup's deadlines to the past so lineups appear locked on demand, enabling testing of locked states without waiting
 
 **Validation:** The database contains real MLB players with correct eligible positions. Seed script produces a fully populated development environment with two leagues of different sizes (e.g. 10 and 12 teams), two real test manager accounts in both leagues, placeholder bot managers filling remaining slots, realistic rosters for all teams, a matchup schedule for the current season, and default lineups for the current week's matchups — without requiring a draft or league management UI.
 
