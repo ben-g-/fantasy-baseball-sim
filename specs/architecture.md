@@ -7,12 +7,12 @@ The system has four primary layers:
 1. **Web client** — React SPA (desktop web, MVP)
 2. **API server** — Node.js + Express, handles all application logic and data access
 3. **Sim engine** — Python service, executes game simulations
-4. **Data stores** — PostgreSQL (via Supabase) and Redis
+4. **Data store** — PostgreSQL via Supabase
 
 Communication between layers:
 - The web client talks exclusively to the Node.js API server via REST
-- The API server dispatches sim jobs asynchronously via a Redis-backed job queue (BullMQ)
-- The Python sim engine consumes jobs from the queue, runs simulations, and writes results to PostgreSQL
+- The API server dispatches sims by making a direct HTTP POST to the Python sim service at the scheduled sim time via a cron job
+- The Python sim service runs the simulation synchronously and writes results to PostgreSQL
 - The API server reads results from PostgreSQL and serves them to the client
 - Lineup lock state changes are pushed to the client via Supabase Realtime
 
@@ -27,9 +27,7 @@ Communication between layers:
 | Auth | Supabase Auth (JWT, Google/Apple OAuth) |
 | Database | PostgreSQL via Supabase |
 | Realtime | Supabase Realtime (PostgreSQL-backed pub/sub) |
-| Cache | Redis |
-| Job queue | BullMQ (Redis-backed) |
-| Sim engine | Python (FastAPI wrapper + simulation logic) |
+| Sim engine | Python (FastAPI service + simulation logic) |
 | Text generation | Python module (post-sim step within sim service) |
 | Stat modeling | NumPy, pandas, pybaseball |
 | Data pipeline | Python scripts (scheduled) |
@@ -53,19 +51,17 @@ Responsibilities:
 - All REST endpoints consumed by the web client (auth, leagues, rosters, lineups, matchups, sim results)
 - Server-side lineup validation (mirrors client-side validation; never trust the client alone)
 - Deadline enforcement: deadline timestamps are stored in the database; the API treats a lineup as locked if the current time is past the deadline (lazy enforcement — no cron job required)
-- Sim job dispatch: enqueues a sim job in BullMQ at the scheduled sim time via a cron job (node-cron)
-- Writes a "sim pending" status to the matchup record when a job is enqueued
+- Sim dispatch: at the scheduled sim time, a node-cron job makes a direct HTTP POST to the Python sim service for each pending matchup; sets matchup status to `sim_pending` before the call and `sim_complete` on success
 - Serves sim results from PostgreSQL once available
 
 ### Sim Engine (Python)
 
 Responsibilities:
-- Exposes a lightweight FastAPI service; not called directly by the web client
-- Consumes sim jobs from the BullMQ queue via a Python worker
-- For each job: fetches the locked lineups, full rosters (bench and bullpen players are needed for AI manager substitutions), and the relevant weekly stats from PostgreSQL, then runs the simulation and writes the structured play-by-play event log and box score back to PostgreSQL
+- Exposes a FastAPI service; receives sim requests via HTTP POST from the Node.js API server
+- For each request: fetches the locked lineups, full rosters (bench and bullpen players are needed for AI manager substitutions), and the relevant weekly stats from PostgreSQL, then runs the simulation and writes the structured play-by-play event log and box score back to PostgreSQL
 - Simulation logic uses a probabilistic, stat-driven model (see Simulation Design below)
 - AI manager logic (pitching changes, DH transitions, substitutions for unavailable players) is implemented here
-- After the sim completes, triggers the text-generation step (see below) before marking the matchup as `sim_complete`
+- After the sim completes, triggers the text-generation step (see below) before returning a success response to the API server
 
 ### Text-Generation Component (Python)
 
@@ -76,13 +72,6 @@ Responsibilities:
 - Generates a natural-language description for each event using templates (e.g. "Shohei Ohtani homers to left — 2 runs score", "[Reliever] replaces [Pitcher] pitching")
 - Writes the generated descriptions to the `description` column of `sim_events`
 - Keeping text generation separate from the sim engine preserves a clean separation of concerns: the sim engine produces structured facts; the text-generation step turns them into readable narrative
-
-### Job Queue (BullMQ + Redis)
-
-Responsibilities:
-- Decouples sim job dispatch (Node.js) from sim job execution (Python)
-- Provides retry logic in case of sim worker failure
-- Each job payload contains: matchup ID, sim scheduled time
 
 ### Database (PostgreSQL via Supabase)
 
@@ -199,13 +188,11 @@ Each at-bat is resolved by sampling from a probability distribution derived from
 
 1. A node-cron job fires at the scheduled sim time
 2. The data pipeline has already run, ingesting that week's stats for all rostered players
-3. For each matchup scheduled for that time, the API verifies both lineups are locked and enqueues a sim job in BullMQ
-4. The API sets the matchup status to `sim_pending`
-5. The Python sim worker picks up the job from the queue
-6. The worker fetches both teams' locked lineups, full rosters, and weekly player stats from PostgreSQL
-7. The worker runs the simulation and writes the play-by-play event log and box score to PostgreSQL
-8. The worker updates the matchup status to `sim_complete`
-9. Supabase Realtime notifies subscribed clients; the Matchup Screen transitions to post-sim mode
+3. For each matchup scheduled for that time, the API sets the matchup status to `sim_pending` and makes a direct HTTP POST to the Python sim service
+4. The Python sim service fetches both teams' locked lineups, full rosters, and weekly player stats from PostgreSQL
+5. The sim service runs the simulation, runs the text-generation step, and writes the play-by-play event log and box score to PostgreSQL
+6. The sim service returns a success response; the API sets the matchup status to `sim_complete`
+7. Supabase Realtime notifies subscribed clients; the Matchup Screen transitions to post-sim mode
 
 ### 5. Results Display
 
@@ -229,19 +216,17 @@ Each at-bat is resolved by sampling from a probability distribution derived from
 
 ## Deployment
 
-**Render** is recommended for MVP. It is a Platform as a Service (PaaS) that supports Node.js services, Python Docker containers, and managed Redis natively, with deployment via GitHub push and minimal configuration overhead. This is significantly simpler than AWS for a small team and allows engineering effort to stay focused on the sim engine and product rather than deployment setup.
+**Render** is recommended for MVP. It is a Platform as a Service (PaaS) that supports Node.js services and Python Docker containers natively, with deployment via GitHub push and minimal configuration overhead. This is significantly simpler than AWS for a small team and allows engineering effort to stay focused on the sim engine and product rather than deployment setup.
 
 | Component | Render Service |
 |---|---|
-| Web client | Static site (S3-equivalent, built-in) |
+| Web client | Static site (built-in CDN) |
 | API server | Web service (Node.js) |
 | Sim engine | Web service (Python Docker container) |
 | Database | Supabase (external managed PostgreSQL) |
-| Redis | Managed Redis (Render add-on) |
-| Job queue | BullMQ on Render managed Redis |
 | Data pipeline | Cron job service (Python Docker container) |
 
-**Migration path:** If the product scales beyond Render's cost-effective range, migrating to AWS (ECS for containers, ElastiCache for Redis, S3 + CloudFront for static hosting) is straightforward since all components are containerized. This migration is a post-MVP concern.
+**Migration path:** If the product scales beyond Render's cost-effective range, migrating to AWS (ECS for containers, S3 + CloudFront for static hosting) is straightforward since all components are containerized. This migration is a post-MVP concern.
 
 ---
 

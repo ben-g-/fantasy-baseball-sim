@@ -34,7 +34,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Create Supabase project; configure environment variables
 - Scaffold Node.js + Express API project with TypeScript
 - Scaffold React frontend project
-- Set up Docker Compose for local development (Node.js API, Python sim service, Redis)
+- Set up Docker Compose for local development (Node.js API, Python sim service)
 - Configure ESLint, Prettier, and basic CI
 
 **Auth**
@@ -126,7 +126,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 **Sim engine (Python)**
 - Set up Python FastAPI service
-- Implement BullMQ Redis consumer (Python worker picks up sim jobs)
+- Set up Python FastAPI service to receive sim requests via HTTP POST from the Node.js API server
 - Implement core plate appearance resolution:
   - Probability model: for each plate appearance, first apply platoon adjustment factors to the batter's and pitcher's post-lock rates independently — the batter's rates are adjusted using their pre-lock vs. LHP or vs. RHP splits (depending on the pitcher's handedness), and the pitcher's rates are adjusted using their pre-lock vs. LHB or vs. RHB splits (depending on the batter's handedness). The adjustment factor for each outcome is the ratio of the relevant pre-lock split rate to the pre-lock overall rate. The platoon-adjusted rates are then combined via a log5-style formula to derive outcome probabilities (single, double, triple, HR, BB, HBP, K, GO, FO). Applying platoon adjustments before log5 ensures the combination operates on true-talent estimates that already reflect the handedness matchup
   - Use seeded placeholder stats for both pre-lock and post-lock stats in this phase
@@ -150,8 +150,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Templates for: plate appearance outcomes, pitching changes, substitutions, stolen bases, caught stealing, pickoffs, errors, player removals
 
 **Job dispatch (Node.js)**
-- Implement node-cron job: at each scheduled sim time, find pending matchups and enqueue sim jobs via BullMQ
-- Update matchup status to `sim_pending` when job is enqueued
+- Implement node-cron job: at each scheduled sim time, find pending matchups and make a direct HTTP POST to the Python sim service for each; set matchup status to `sim_pending` before the call and `sim_complete` on success
 - Supabase Realtime: publish `sim_complete` event to subscribed clients
 
 **API**
