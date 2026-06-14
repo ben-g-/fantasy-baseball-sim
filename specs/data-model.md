@@ -17,12 +17,14 @@ All tables live in PostgreSQL via Supabase unless otherwise noted.
 ## Enums
 
 ```
-field_position:   C | 1B | 2B | SS | 3B | LF | CF | RF | DH | P
+field_position:   C | 1B | 2B | SS | 3B | LF | CF | RF | DH | P | PH
 sim_status:       scheduled | sim_pending | sim_complete
 half_inning:      top | bottom
 sim_event_type:   plate_appearance | pitching_change | substitution | stolen_base | caught_stealing | pickoff | error
 putout_type:      force | tag | caught_off_base
 ```
+
+Note: `PH` (pinch hitter) is valid only in `sim_batter_positions`. It is not a valid field position in `lineup_batting_order`.
 
 ---
 
