@@ -357,6 +357,7 @@ Per-pitcher stat line for each sim. Feeds the box score pitching table. Derivabl
 | matchup_id | UUID | FK to matchups.id |
 | team_id | UUID | FK to teams.id |
 | player_id | integer | FK to players.mlb_id |
+| pitching_sequence | integer | Order of appearance (1 = SP, 2 = first reliever, etc.) |
 | outs_recorded | integer | Divide by 3 for display as IP |
 | h | integer | |
 | r | integer | |

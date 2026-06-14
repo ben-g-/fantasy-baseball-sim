@@ -134,7 +134,7 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Batter substitution: replace capped batters from bench
   - Use pre-lock stats (seeded placeholders) for AI manager decisions
 - Write play-by-play events and runner outcomes to `sim_events` and `sim_event_runner_outcomes`
-- Write box score stats to `sim_batter_stats`, `sim_pitcher_stats`, `sim_line_score`
+- Write box score stats to `sim_batter_stats`, `sim_pitcher_stats` (including a `pitching_sequence` integer so pitchers are displayed in order of appearance in the box score), `sim_line_score`
 - Update `matchups.sim_status` to `sim_complete`
 
 **Text generation component (Python, runs after sim)**
@@ -259,5 +259,4 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Multi-game series matchups
 - ERA/WHIP/K9 display (requires adding `outs_recorded` and `er` to pitcher stats tables)
 - Standalone team roster view (not yet designed)
-- Pitcher ordering in box score
 - Push notifications
