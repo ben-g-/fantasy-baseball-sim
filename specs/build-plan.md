@@ -10,7 +10,7 @@ Phases 1–5 focus on getting that scenario working end-to-end. Phases 6–7 bui
 
 ## Hardcoded Deadline Offsets
 
-Lineup lock deadlines are computed from `sim_scheduled_at` using these fixed offsets. All deadlines must fall before the first MLB game of the relevant day.
+Lineup lock deadlines are computed from `sim_scheduled_at` using these fixed offsets. All deadlines must fall before the first MLB game of the relevant week.
 
 | Deadline | Offset from sim time | Time (ET) |
 |---|---|---|
