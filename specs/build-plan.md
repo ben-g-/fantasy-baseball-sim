@@ -224,7 +224,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 **Frontend**
 - League creation screen
-- League dashboard: team list, current week's matchups (all matchups in the league); clicking any matchup opens the Matchup Screen in read-only mode for non-participating managers
+- League dashboard: standings table (replaces a plain team list) plus current week's matchups; clicking any matchup opens the Matchup Screen in read-only mode for non-participating managers
 - Navigation: league switcher, home screen per league
 
 **Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup. League and team structure no longer requires seed data; rosters still depend on it pending the draft in Phase 7.

@@ -130,6 +130,23 @@ Returns all matchups in the league for a given week. Defaults to the current wee
 
 ---
 
+#### GET /leagues/:id/standings
+Returns the current standings for the league, ordered by wins descending. Derived from all `sim_complete` matchups for the season. Used as the primary team list on the league dashboard.
+
+**Response:**
+```json
+[
+  {
+    "rank": 1,
+    "team": { "id": "uuid", "name": "string", "manager": { "id": "uuid", "display_name": "string" } },
+    "w": 7,
+    "l": 3
+  }
+]
+```
+
+---
+
 ### Teams
 
 #### GET /teams/:id/roster
