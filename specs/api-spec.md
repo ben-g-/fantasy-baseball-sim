@@ -281,6 +281,7 @@ Notes:
 - The bullpen contains all Pitcher-eligible players on the roster who are not the SP; two-way players who are not in the starting lineup (either as SP or in the batting order) appear in both bench and bullpen
 - `is_sp_eligible_this_week` is included only for Pitcher-eligible players
 - For the opponent's lineup, the same structure is returned but edits are not permitted
+- Any league member may access this endpoint, not only the two participating teams. For a non-participating manager, both lineup columns are read-only
 
 ---
 
