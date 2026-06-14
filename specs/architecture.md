@@ -227,9 +227,9 @@ Each at-bat is resolved by sampling from a probability distribution derived from
 
 ---
 
-## Infrastructure
+## Deployment
 
-**Render** is recommended for MVP. It supports Node.js services, Python Docker containers, and managed Redis natively, with deployment via GitHub push and minimal configuration overhead. This is significantly simpler than AWS for a small team and allows engineering effort to stay focused on the sim engine and product rather than infrastructure setup.
+**Render** is recommended for MVP. It is a Platform as a Service (PaaS) that supports Node.js services, Python Docker containers, and managed Redis natively, with deployment via GitHub push and minimal configuration overhead. This is significantly simpler than AWS for a small team and allows engineering effort to stay focused on the sim engine and product rather than deployment setup.
 
 | Component | Render Service |
 |---|---|

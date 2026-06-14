@@ -30,7 +30,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ### Tasks
 
-**Infrastructure**
+**Deployment**
 - Create Supabase project; configure environment variables
 - Scaffold Node.js + Express API project with TypeScript
 - Scaffold React frontend project
