@@ -51,7 +51,7 @@ Responsibilities:
 Responsibilities:
 - All REST endpoints consumed by the web client (auth, leagues, rosters, lineups, matchups, sim results)
 - Server-side lineup validation (mirrors client-side validation; never trust the client alone)
-- Deadline enforcement: deadline timestamps are stored in the database; the API treats a lineup as locked if the current time is past the deadline (lazy enforcement — no cron job required)
+- Deadline enforcement: deadline timestamps are computed from `sim_scheduled_at` using hardcoded offsets (never stored); the API treats a lineup as locked if the current time is past the computed deadline (lazy enforcement — no cron job required)
 - Sim dispatch: at the scheduled sim time, a node-cron job makes a direct HTTP POST to the Python sim service for each pending matchup; sets matchup status to `sim_pending` before the call and `sim_complete` on success
 - Serves sim results from PostgreSQL once available
 
@@ -79,7 +79,7 @@ Responsibilities:
 Primary data store for all persistent data. Key entity groups:
 - Users, leagues, teams, rosters
 - Players (MLB master data + weekly performance stats)
-- Matchups (schedule, home/road designation, sim status, lineup lock deadline timestamps)
+- Matchups (teams involved, home/road designation, sim status, scheduled sim time)
 - Lineups (SP selection, batting order, field positions)
 - Sim results (play-by-play event log, box score)
 
@@ -180,10 +180,10 @@ Each at-bat is resolved by sampling from a probability distribution derived from
 
 ### 3. Deadline Locking
 
-1. Deadlines are stored as timestamps on the matchup record
-2. When the client or API receives a request involving a lineup, it compares the current time to the deadline timestamp
-3. If the deadline has passed, the lineup is treated as locked — no further edits are accepted
-4. Supabase Realtime publishes the lock event to subscribed clients, who update the UI immediately
+1. Deadlines are computed from `sim_scheduled_at` using hardcoded offsets and included in the `GET /matchups/:id` response; they are not stored in the database
+2. When the API receives a lineup write request, it computes the relevant deadline and rejects the request if the current time is past it
+3. When the client receives a matchup response, it compares the current time to the returned deadline timestamps to determine lock state and enable/disable editing
+4. Supabase Realtime notifies subscribed clients when the matchup record changes, prompting a re-fetch so the UI reflects current lock state without polling
 
 ### 4. Sim Dispatch and Execution
 
