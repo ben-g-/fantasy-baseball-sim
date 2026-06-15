@@ -430,7 +430,7 @@ The Node.js API server uses Supabase's service role key for all database operati
 1. **Defense-in-depth:** prevents any non-service-role credential from accessing data outside its scope, even if application-layer authorization is misconfigured.
 2. **Realtime subscription scoping:** Supabase Realtime enforces RLS when filtering which row-change events are delivered to subscribed web clients. The policies here control what the client can observe via its Realtime subscriptions.
 
-All tables have RLS enabled. No write policies are defined — all writes are performed by the API server, sim engine, and data pipeline via the service role key, which bypasses RLS. Any direct (non-service-role) write is blocked by default.
+All tables have RLS enabled. The API server, sim engine, and data pipeline all use the service role key, which bypasses RLS entirely — so RLS does not govern any read or write performed by those components. No write policies are defined; any direct (non-service-role) write is blocked by default. Read policies are defined solely to scope Supabase Realtime event delivery: the web client connects to Supabase directly using the user's JWT for its Realtime subscriptions, and RLS controls which row-change events the client receives.
 
 ### Helper Function
 
