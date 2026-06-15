@@ -83,7 +83,7 @@ Primary data store for all persistent data. Key entity groups:
 - Lineups (SP selection, batting order, field positions)
 - Sim results (play-by-play event log, box score)
 
-Note: lineup lock state is never stored explicitly. It is always derived by comparing the current time to the relevant deadline timestamp on the matchup record.
+Note: lineup lock state is never stored explicitly. It is always derived by comparing the current time to the deadline computed from the matchup's `sim_scheduled_at`.
 
 ### Data Pipeline (Python scripts)
 
