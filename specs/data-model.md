@@ -418,3 +418,60 @@ Primary key: (matchup_id, team_id, inning)
 | batter_post_lock_stats, pitcher_post_lock_stats | Data pipeline (captured just before sim runs) |
 | sim_events, sim_event_runner_outcomes, sim_batter_stats, sim_batter_positions, sim_pitcher_stats, sim_line_score | Sim engine (structured data) and text-generation component (description column) |
 | matchups.sim_status | Sim engine (updates to sim_pending, then sim_complete) |
+
+---
+
+## Row Level Security
+
+### Strategy
+
+The Node.js API server uses Supabase's service role key for all database operations, which bypasses RLS. RLS policies therefore serve two purposes:
+
+1. **Defense-in-depth:** prevents any non-service-role credential from accessing data outside its scope, even if application-layer authorization is misconfigured.
+2. **Realtime subscription scoping:** Supabase Realtime enforces RLS when filtering which row-change events are delivered to subscribed web clients. The policies here control what the client can observe via its Realtime subscriptions.
+
+All tables have RLS enabled. No write policies are defined — all writes are performed by the API server, sim engine, and data pipeline via the service role key, which bypasses RLS. Any direct (non-service-role) write is blocked by default.
+
+### Helper Function
+
+A reusable function checks whether the current authenticated user is a member of a given league. It is referenced in SELECT policies across multiple tables.
+
+```sql
+CREATE OR REPLACE FUNCTION is_league_member(p_league_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM teams
+    WHERE league_id = p_league_id
+      AND manager_id = auth.uid()
+  );
+$$;
+```
+
+`SECURITY DEFINER` is required so the function can query `teams` with elevated privileges, avoiding RLS recursion. An index on `teams(manager_id, league_id)` ensures this function is efficient when evaluated per row.
+
+### SELECT Policies
+
+| Table | SELECT policy |
+|---|---|
+| profiles | `id = auth.uid() OR EXISTS (SELECT 1 FROM teams t1 JOIN teams t2 ON t1.league_id = t2.league_id WHERE t1.manager_id = auth.uid() AND t2.manager_id = profiles.id)` |
+| leagues | `is_league_member(id)` |
+| teams | `is_league_member(league_id)` |
+| roster_players | `is_league_member(league_id)` |
+| players | `auth.uid() IS NOT NULL` |
+| player_positions | `auth.uid() IS NOT NULL` |
+| matchups | `is_league_member(league_id)` |
+| lineups | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+| lineup_batting_order | `is_league_member((SELECT m.league_id FROM matchups m JOIN lineups l ON l.matchup_id = m.id WHERE l.id = lineup_id))` |
+| batter_pre_lock_stats | `auth.uid() IS NOT NULL` |
+| batter_post_lock_stats | `auth.uid() IS NOT NULL` |
+| pitcher_pre_lock_stats | `auth.uid() IS NOT NULL` |
+| pitcher_post_lock_stats | `auth.uid() IS NOT NULL` |
+| sim_events | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+| sim_event_runner_outcomes | `is_league_member((SELECT m.league_id FROM matchups m JOIN sim_events e ON e.matchup_id = m.id WHERE e.id = sim_event_id))` |
+| sim_batter_stats | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+| sim_batter_positions | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+| sim_pitcher_stats | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+| sim_line_score | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
+
+Player and stat tables (`players`, `player_positions`, and all four stat tables) are readable by any authenticated user — they are reference data with no league-specific scope.
