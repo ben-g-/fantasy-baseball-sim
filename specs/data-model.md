@@ -425,16 +425,17 @@ Primary key: (matchup_id, team_id, inning)
 
 ### Strategy
 
-The Node.js API server uses Supabase's service role key for all database operations, which bypasses RLS. RLS policies therefore serve two purposes:
+The Node.js API server uses Supabase's service role key for all database operations, which bypasses RLS entirely. RLS therefore has no effect on any read or write performed by the API server, sim engine, or data pipeline.
 
-1. **Defense-in-depth:** prevents any non-service-role credential from accessing data outside its scope, even if application-layer authorization is misconfigured.
-2. **Realtime subscription scoping:** Supabase Realtime enforces RLS when filtering which row-change events are delivered to subscribed web clients. The policies here control what the client can observe via its Realtime subscriptions.
+All tables have RLS enabled with no write policies — any direct (non-service-role) write is blocked by default.
 
-All tables have RLS enabled. The API server, sim engine, and data pipeline all use the service role key, which bypasses RLS entirely — so RLS does not govern any read or write performed by those components. No write policies are defined; any direct (non-service-role) write is blocked by default. Read policies are defined solely to scope Supabase Realtime event delivery: the web client connects to Supabase directly using the user's JWT for its Realtime subscriptions, and RLS controls which row-change events the client receives.
+Read policies are defined only on the three tables that have Supabase Realtime enabled: `matchups`, `lineups`, and `lineup_batting_order`. The web client subscribes to these tables directly using the user's JWT, and RLS controls which row-change events it receives. All other tables have no read policy, so non-service-role reads on those tables are also blocked by default.
+
+If Realtime is enabled on additional tables in the future, a read policy must be added at that point.
 
 ### Helper Function
 
-A reusable function checks whether the current authenticated user is a member of a given league. It is referenced in SELECT policies across multiple tables.
+A reusable function checks whether the current authenticated user is a member of a given league. It is used in the read policies below.
 
 ```sql
 CREATE OR REPLACE FUNCTION is_league_member(p_league_id UUID)
@@ -452,26 +453,8 @@ $$;
 
 ### Read Policies
 
-| Table | SELECT policy |
+| Table | Read policy |
 |---|---|
-| profiles | `id = auth.uid() OR EXISTS (SELECT 1 FROM teams t1 JOIN teams t2 ON t1.league_id = t2.league_id WHERE t1.manager_id = auth.uid() AND t2.manager_id = profiles.id)` |
-| leagues | `is_league_member(id)` |
-| teams | `is_league_member(league_id)` |
-| roster_players | `is_league_member(league_id)` |
-| players | `auth.uid() IS NOT NULL` |
-| player_positions | `auth.uid() IS NOT NULL` |
 | matchups | `is_league_member(league_id)` |
 | lineups | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
 | lineup_batting_order | `is_league_member((SELECT m.league_id FROM matchups m JOIN lineups l ON l.matchup_id = m.id WHERE l.id = lineup_id))` |
-| batter_pre_lock_stats | `auth.uid() IS NOT NULL` |
-| batter_post_lock_stats | `auth.uid() IS NOT NULL` |
-| pitcher_pre_lock_stats | `auth.uid() IS NOT NULL` |
-| pitcher_post_lock_stats | `auth.uid() IS NOT NULL` |
-| sim_events | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
-| sim_event_runner_outcomes | `is_league_member((SELECT m.league_id FROM matchups m JOIN sim_events e ON e.matchup_id = m.id WHERE e.id = sim_event_id))` |
-| sim_batter_stats | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
-| sim_batter_positions | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
-| sim_pitcher_stats | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
-| sim_line_score | `is_league_member((SELECT league_id FROM matchups WHERE id = matchup_id))` |
-
-Player and stat tables (`players`, `player_positions`, and all four stat tables) are readable by any authenticated user — they are reference data with no league-specific scope.
