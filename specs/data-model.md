@@ -450,7 +450,7 @@ $$;
 
 `SECURITY DEFINER` is required so the function can query `teams` with elevated privileges, avoiding RLS recursion. An index on `teams(manager_id, league_id)` ensures this function is efficient when evaluated per row.
 
-### SELECT Policies
+### Read Policies
 
 | Table | SELECT policy |
 |---|---|
