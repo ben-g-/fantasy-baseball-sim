@@ -1,0 +1,16 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "3000:3000"
+    env_file: ./api/.env
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+
+  sim:
+    build: ./sim
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sim:/app
