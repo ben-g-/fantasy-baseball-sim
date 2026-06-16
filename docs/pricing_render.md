@@ -34,6 +34,6 @@ The pipeline runs once per week for a few minutes. Expected cost: well under the
 
 ## Other charges (if applicable)
 
-- Bandwidth: 5 GB/month included, then $0.15/GB
+- Bandwidth: 5 GB/month included, then $0.15/GB. A small fantasy league generates minimal API traffic; the free allowance is unlikely to be exceeded.
 - Build pipeline: 500 minutes/month included, then $5 per 1,000 minutes
 - Custom domains: 2 included, then $0.25/domain/month
