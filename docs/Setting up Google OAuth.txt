@@ -1,0 +1,14 @@
+Setting up Google OAuth...
+
+At https://console.cloud.google.com/auth/overview/create?organizationId=0&project=supabase-oauth-499606
+
+- specified my personal email address as the support email
+- specified "Audience" as "External", which means: "Available to any test user with a Google Account. Your app will start in testing mode and will only be available to users you add to the list of test users. Once your app is ready to push to production, you may need to verify your app."
+  - the list of test users is on my OAuth consent screen: https://console.cloud.google.com/apis/credentials/consent?organizationId=0&project=supabase-oauth-499606
+- I agreed to https://developers.google.com/terms/api-services-user-data-policy
+
+At "Create OAuth client ID" https://console.cloud.google.com/auth/clients/create?previousPage=%2Fapis%2Fcredentials%3Freferrer%3Dsearch%26organizationId%3D0%26project%3Dsupabase-oauth-499606&organizationId=0&project=supabase-oauth-499606
+
+- specified Application type: Web application
+- specified Name: baseball Google OAuth web client
+- was shown dialog saying "OAuth client created. The client ID can always be accessed from Clients tab under Google Auth Platform. You will no longer be able to view or download the client secret once you close this dialog. Make sure you have copied or downloaded the information below and securely stored it."
