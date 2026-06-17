@@ -269,6 +269,38 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
+## Phase 8: Production Launch
+
+**Goal:** The app is ready for real users — hardened, monitored, and legally compliant.
+
+### Tasks
+
+**Google OAuth**
+- Publish the Google OAuth app (switch from testing mode to production in Google Cloud Console)
+- Ensure the OAuth consent screen is complete (app name, logo, privacy policy URL, terms of service URL)
+
+**Infrastructure**
+- Set up production Render deployment (separate from dev/staging)
+- Configure a custom domain
+- Verify CORS origins are locked down to the production domain (not `*`)
+
+**Observability**
+- Set up error monitoring (e.g. Sentry) for the API and frontend
+- Set up uptime monitoring for the API and sim service
+
+**Security review**
+- Audit all RLS policies
+- Review rate limiting on auth endpoints (Supabase provides this by default; confirm settings)
+- Review any secrets management concerns (rotate keys, verify `.env` files are not committed)
+
+**Legal**
+- Add a privacy policy page (required by Google OAuth for production apps)
+- Add a terms of service page
+
+**Validation:** Real users can sign up and sign in with email/password and Google OAuth. The app is running on a custom domain with error and uptime monitoring in place.
+
+---
+
 ## Deferred (Post-MVP)
 
 - Waiver wire and trade flows
