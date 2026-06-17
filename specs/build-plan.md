@@ -299,6 +299,8 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 **Validation:** Real users can sign up and sign in with email/password and Google OAuth. The app is running on a custom domain with error and uptime monitoring in place.
 
+**Important:** This section is just a skeleton! The items are placeholders to fill out when the time comes rather than a fully detailed task list.
+
 ---
 
 ## Deferred (Post-MVP)
