@@ -30,7 +30,8 @@ async function signUp() {
   })
   loading.value = false
   if (error) {
-    errorMsg.value = error.message
+    const msg = typeof error.message === 'string' ? error.message : ''
+    errorMsg.value = msg && msg !== '{}' ? msg : 'An unexpected error occurred.'
   } else {
     router.push('/login')
   }
