@@ -280,6 +280,8 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Ensure the OAuth consent screen is complete (app name, logo, privacy policy URL, terms of service URL)
 
 **Supabase**
+- Create a separate Supabase project for production (dev and production should have separate databases and separate API keys)
+- Configure Google OAuth callback URL for the production Supabase project
 - Re-enable email confirmation if disabled during development (Authentication → Providers → Email → "Confirm email")
 - Review all Supabase auth settings for production readiness
 
