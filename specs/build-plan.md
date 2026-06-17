@@ -2,9 +2,19 @@
 
 ## Overview
 
-The build is organized into seven phases. Each phase produces a testable deliverable and builds directly on the previous one. The primary validation target throughout is the Mini-PRD scenario: a manager sets their starting lineup and views the simulated game result.
+The build is organized into seven phases. Each phase produces a manually testable deliverable and builds directly on the previous one. The primary validation target throughout is the Mini-PRD scenario: a manager sets their starting lineup and views the simulated game result.
 
 Phases 1–5 focus on getting that scenario working end-to-end. Phases 6–7 build out the broader product around it.
+
+### Automated testing strategy
+
+Automated tests are deferred until the core product behavior is stable enough that tests won't need to be rewritten as the design evolves. The plan is:
+
+- **Phase 4 (sim engine):** Add unit tests for the sim engine — plate appearance resolution, base-running, appearance cap logic. The sim is composed of pure functions and is the highest-value target for automated testing.
+- **Phase 5 (stats pipeline):** Add integration tests for the API route handlers, running against a real test database.
+- **UI tests:** Deferred post-MVP. The frontend changes most frequently and is the least cost-effective layer to test early.
+
+Dependabot dependency update PRs (added in Phase 2) rely on this test coverage to be mergeable with confidence.
 
 ---
 
