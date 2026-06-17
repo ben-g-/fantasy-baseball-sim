@@ -279,6 +279,10 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Publish the Google OAuth app (switch from testing mode to production in Google Cloud Console)
 - Ensure the OAuth consent screen is complete (app name, logo, privacy policy URL, terms of service URL)
 
+**Supabase**
+- Re-enable email confirmation if disabled during development (Authentication → Providers → Email → "Confirm email")
+- Review all Supabase auth settings for production readiness
+
 **Infrastructure**
 - Set up production Render deployment (separate from dev/staging)
 - Configure a custom domain
