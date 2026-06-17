@@ -188,9 +188,8 @@ CREATE TABLE pitcher_pre_lock_stats (
   go                    INTEGER NOT NULL DEFAULT 0,
   fo                    INTEGER NOT NULL DEFAULT 0,
   po                    INTEGER NOT NULL DEFAULT 0,
-  -- Platoon splits vs LHB (po excluded)
+  -- Platoon splits vs LHB (pitches_thrown and po excluded)
   vs_lhb_bf             INTEGER NOT NULL DEFAULT 0,
-  vs_lhb_pitches_thrown INTEGER NOT NULL DEFAULT 0,
   vs_lhb_singles        INTEGER NOT NULL DEFAULT 0,
   vs_lhb_doubles        INTEGER NOT NULL DEFAULT 0,
   vs_lhb_triples        INTEGER NOT NULL DEFAULT 0,
@@ -202,7 +201,6 @@ CREATE TABLE pitcher_pre_lock_stats (
   vs_lhb_fo             INTEGER NOT NULL DEFAULT 0,
   -- Platoon splits vs RHB
   vs_rhb_bf             INTEGER NOT NULL DEFAULT 0,
-  vs_rhb_pitches_thrown INTEGER NOT NULL DEFAULT 0,
   vs_rhb_singles        INTEGER NOT NULL DEFAULT 0,
   vs_rhb_doubles        INTEGER NOT NULL DEFAULT 0,
   vs_rhb_triples        INTEGER NOT NULL DEFAULT 0,

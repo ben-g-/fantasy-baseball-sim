@@ -256,7 +256,7 @@ Season pitching stats up to the lineup lock date. Used by the AI manager for in-
 | fo | integer | |
 | po | integer | Pickoffs |
 
-Platoon splits are also stored on this table as `vs_lhb_*` and `vs_rhb_*` variants of the counting stats above (excluding po), e.g. `vs_lhb_bf`, `vs_lhb_k`, `vs_rhb_hr`, etc. These enable the AI manager to account for batter handedness matchups.
+Platoon splits are also stored on this table as `vs_lhb_*` and `vs_rhb_*` variants of the counting stats above (excluding `pitches_thrown` and `po`), e.g. `vs_lhb_bf`, `vs_lhb_k`, `vs_rhb_hr`, etc. These enable the AI manager to account for batter handedness matchups. `pitches_thrown` is excluded because splits by batter handedness are not meaningful for appearance cap enforcement, which uses the overall total only.
 
 Primary key: (player_id, sim_date)
 
