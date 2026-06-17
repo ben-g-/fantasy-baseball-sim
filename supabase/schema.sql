@@ -116,7 +116,7 @@ CREATE TABLE lineup_batting_order (
 CREATE TABLE batter_pre_lock_stats (
   player_id      INTEGER NOT NULL REFERENCES players(mlb_id) ON DELETE CASCADE,
   sim_date       DATE    NOT NULL,
-  -- Season totals
+  -- Season totals (stored for convenience where we could derive them from the platoon splits)
   pa             INTEGER NOT NULL DEFAULT 0,
   singles        INTEGER NOT NULL DEFAULT 0,
   doubles        INTEGER NOT NULL DEFAULT 0,
@@ -175,7 +175,7 @@ CREATE TABLE batter_post_lock_stats (
 CREATE TABLE pitcher_pre_lock_stats (
   player_id             INTEGER NOT NULL REFERENCES players(mlb_id) ON DELETE CASCADE,
   sim_date              DATE    NOT NULL,
-  -- Season totals
+  -- Season totals (stored for convenience where we could derive them from the platoon splits)
   bf                    INTEGER NOT NULL DEFAULT 0,
   pitches_thrown        INTEGER NOT NULL DEFAULT 0,
   singles               INTEGER NOT NULL DEFAULT 0,
