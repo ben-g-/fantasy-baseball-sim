@@ -58,6 +58,9 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ### Tasks
 
+**Maintenance**
+- Add Dependabot configuration for automated weekly dependency update PRs
+
 **Data pipeline (Python)**
 - Build MLB Stats API client (Python) targeting `statsapi.mlb.com`
 - Ingest all active MLB players: mlb_id, full_name, last_name, throws, bats, mlb_team
