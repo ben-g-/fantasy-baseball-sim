@@ -6,9 +6,7 @@ import { supabase } from '../lib/supabase'
 const router = useRouter()
 
 onMounted(async () => {
-  console.log('AuthCallbackView mounted, URL:', window.location.href)
-  const { data: { session }, error } = await supabase.auth.getSession()
-  console.log('getSession result:', { session, error })
+  const { data: { session } } = await supabase.auth.getSession()
   router.replace(session ? '/' : '/login')
 })
 </script>
