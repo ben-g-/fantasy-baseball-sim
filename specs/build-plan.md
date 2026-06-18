@@ -303,6 +303,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 **Legal**
 - Add a privacy policy page (required by Google OAuth for production apps)
 - Add a terms of service page
+- Implement account deletion (required by GDPR right to erasure and CCPA): delete the user's profile and associated data, then delete the Supabase Auth user record; surface as a self-serve option in account settings
 
 **Validation:** Real users can sign up and sign in with email/password and Google OAuth. The app is running on a custom domain with error and uptime monitoring in place.
 
