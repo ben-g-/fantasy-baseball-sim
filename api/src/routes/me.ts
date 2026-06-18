@@ -9,7 +9,7 @@ meRouter.get('/me', requireAuth, async (req: Request, res: Response): Promise<vo
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, username, display_name')
+    .select('id, display_name')
     .eq('id', userId)
     .single();
 

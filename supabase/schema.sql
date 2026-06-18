@@ -21,7 +21,6 @@ CREATE TYPE putout_type    AS ENUM ('force', 'tag', 'caught_off_base');
 
 CREATE TABLE profiles (
   id           UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username     TEXT        NOT NULL UNIQUE,
   display_name TEXT        NOT NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -401,11 +400,15 @@ CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, display_name, created_at)
+  INSERT INTO public.profiles (id, display_name, created_at)
   VALUES (
     NEW.id,
-    NEW.raw_user_meta_data->>'username',
-    NEW.raw_user_meta_data->>'display_name',
+    COALESCE(
+      NULLIF(NEW.raw_user_meta_data->>'display_name', ''),
+      NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
+      NULLIF(NEW.raw_user_meta_data->>'name', ''),
+      split_part(NEW.email, '@', 1)
+    ),
     NEW.created_at
   );
   RETURN NEW;

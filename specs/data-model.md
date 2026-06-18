@@ -36,7 +36,6 @@ Extends Supabase Auth's `auth.users` table. One row per registered user.
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | PK; FK to auth.users.id |
-| username | text | Unique |
 | display_name | text | |
 | created_at | timestamptz | |
 

@@ -10,7 +10,6 @@ import Message from 'primevue/message'
 const router = useRouter()
 const email = ref('')
 const password = ref('')
-const username = ref('')
 const displayName = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
@@ -23,7 +22,6 @@ async function signUp() {
     password: password.value,
     options: {
       data: {
-        username: username.value,
         display_name: displayName.value,
       },
     },
@@ -50,10 +48,6 @@ async function signUp() {
         <div class="flex flex-column gap-1">
           <label class="font-medium">Display name</label>
           <InputText v-model="displayName" />
-        </div>
-        <div class="flex flex-column gap-1">
-          <label class="font-medium">Username</label>
-          <InputText v-model="username" />
         </div>
         <div class="flex flex-column gap-1">
           <label class="font-medium">Email</label>
