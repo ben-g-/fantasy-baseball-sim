@@ -4,17 +4,17 @@
 
 The build is organized into seven phases. Each phase produces a manually testable deliverable and builds directly on the previous one. The primary validation target throughout is the Mini-PRD scenario: a manager sets their starting lineup and views the simulated game result.
 
-Phases 1–5 focus on getting that scenario working end-to-end. Phases 6–7 build out the broader product around it.
+Phases 1–6 focus on getting that scenario working end-to-end. Phases 7–8 build out the broader product around it.
 
 ### Automated testing strategy
 
 Automated tests are deferred until the core product behavior is stable enough that tests won't need to be rewritten as the design evolves. The plan is:
 
-- **Phase 4 (sim engine):** Add unit tests for the sim engine — plate appearance resolution, base-running, appearance cap logic. The sim is composed of pure functions and is the highest-value target for automated testing.
-- **Phase 5 (stats pipeline):** Add integration tests for the API route handlers, running against a real test database.
+- **Phase 5 (sim engine):** Add unit tests for the sim engine — plate appearance resolution, base-running, appearance cap logic. The sim is composed of pure functions and is the highest-value target for automated testing.
+- **Phase 6 (stats pipeline):** Add integration tests for the API route handlers, running against a real test database.
 - **UI tests:** Deferred post-MVP. The frontend changes most frequently and is the least cost-effective layer to test early.
 
-Dependabot dependency update PRs (added in Phase 2) rely on this test coverage to be mergeable with confidence.
+Dependabot dependency update PRs (added in Phase 3) rely on this test coverage to be mergeable with confidence.
 
 ---
 
@@ -62,7 +62,23 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 2: Player Data Pipeline
+## Phase 2: Deployment
+
+**Goal:** All three services are deployed to a dev environment on Render, with CI auto-deploying on every push to main.
+
+### Tasks
+
+- Deploy the Node.js API to Render (web service)
+- Deploy the Vue frontend to Render (static site)
+- Deploy the Python sim/pipeline service to Render (web service)
+- Configure environment variables for all services in Render
+- Add a deploy step to the CI pipeline so pushes to main trigger automatic redeployment
+
+**Validation:** The app is accessible at a public Render URL. A push to main triggers CI and auto-deploys all three services.
+
+---
+
+## Phase 3: Player Data Pipeline
 
 **Goal:** MLB player master data in the database, with eligible positions, ready to be assigned to rosters.
 
@@ -99,7 +115,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 3: Matchup & Lineup
+## Phase 4: Matchup & Lineup
 
 **Goal:** The Matchup Screen works end-to-end in pre-sim mode. A manager can view both lineups, select their SP, and set their batting order.
 
@@ -131,7 +147,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 4: Sim Engine
+## Phase 5: Sim Engine
 
 **Goal:** The sim runs for a matchup and produces play-by-play events, a box score, and a line score. Sim results are viewable on the Matchup Screen.
 
@@ -179,7 +195,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 5: Stats Pipeline
+## Phase 6: Stats Pipeline
 
 **Goal:** The sim uses real weekly stats instead of seeded placeholders. The full prediction-game mechanic is operational.
 
@@ -206,7 +222,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 6: League & Team Management
+## Phase 7: League & Team Management
 
 **Goal:** Managers can create leagues, invite other managers, and navigate the league and team management features without relying on seed data. Rosters continue to rely on seed data until the draft is built in Phase 7.
 
@@ -244,7 +260,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 7: Draft
+## Phase 8: Draft
 
 **Goal:** Managers can build their rosters through a snake draft before the season begins.
 
@@ -269,7 +285,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 8: Production Launch
+## Phase 9: Production Launch
 
 **Goal:** The app is ready for real users — hardened, monitored, and legally compliant.
 
