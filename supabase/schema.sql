@@ -418,6 +418,22 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ============================================================
+-- Grants
+-- ============================================================
+
+-- service_role is used by the API server, sim engine, and data pipeline.
+-- It bypasses RLS but still needs object-level privileges when tables are
+-- created via raw SQL rather than through the Supabase dashboard.
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+-- authenticated role needs SELECT on the three Realtime-enabled tables so
+-- that Supabase Realtime subscriptions work. RLS policies then control
+-- which rows each user can see.
+GRANT SELECT ON matchups, lineups, lineup_batting_order TO authenticated;
+
+
+-- ============================================================
 -- Realtime
 -- ============================================================
 -- Enable Realtime on matchups, lineups, and lineup_batting_order
