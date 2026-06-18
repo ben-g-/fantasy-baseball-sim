@@ -305,6 +305,9 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Add a terms of service page
 - Implement account deletion (required by GDPR right to erasure and CCPA): delete the user's profile and associated data, then delete the Supabase Auth user record; surface as a self-serve option in account settings
 
+**UI polish**
+- Polish the login and signup pages (logo/app name, background, spacing) — currently functional but visually minimal
+
 **Validation:** Real users can sign up and sign in with email/password and Google OAuth. The app is running on a custom domain with error and uptime monitoring in place.
 
 **Important:** This section is just a skeleton! The items are placeholders to fill out when the time comes rather than a fully detailed task list.
