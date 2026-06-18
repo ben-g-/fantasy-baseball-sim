@@ -26,7 +26,7 @@ Communication between layers:
 | Component library | PrimeVue |
 | Package manager | npm |
 | API server | Node.js + Express |
-| Auth | Supabase Auth (JWT, Google/Apple OAuth) |
+| Auth | Supabase Auth (JWT, Google OAuth) |
 | Database | PostgreSQL via Supabase |
 | Realtime | Supabase Realtime (PostgreSQL-backed pub/sub) |
 | Sim engine | Python (FastAPI service + simulation logic) |

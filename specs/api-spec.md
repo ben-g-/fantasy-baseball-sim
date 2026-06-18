@@ -34,7 +34,6 @@ Returns the current user's profile.
 ```json
 {
   "id": "uuid",
-  "username": "string",
   "display_name": "string"
 }
 ```
