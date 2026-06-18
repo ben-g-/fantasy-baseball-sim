@@ -401,7 +401,7 @@ CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO profiles (id, username, display_name, created_at)
+  INSERT INTO public.profiles (id, username, display_name, created_at)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'username',
