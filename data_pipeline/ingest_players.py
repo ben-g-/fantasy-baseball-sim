@@ -5,7 +5,7 @@ Run weekly as a Render cron job.
 import os
 from datetime import date, datetime, timezone
 
-import statsapi
+import requests
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -14,12 +14,19 @@ load_dotenv()
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_SERVICE_ROLE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 
+MLB_API_BASE = 'https://statsapi.mlb.com/api/v1'
+BATCH_SIZE = 500
+
+# Minimum games at a position in the current season to qualify as eligible there.
+MIN_GAMES_FOR_ELIGIBILITY = 10
+
 # Maps MLB Stats API position abbreviations to field_position enum values.
 # One abbreviation can map to multiple fantasy positions (e.g. OF → LF/CF/RF).
 POSITION_MAP: dict[str, list[str]] = {
     'P':   ['P'],
     'SP':  ['P'],
     'RP':  ['P'],
+    'TWP': ['P'],
     'C':   ['C'],
     '1B':  ['1B'],
     '2B':  ['2B'],
@@ -31,17 +38,47 @@ POSITION_MAP: dict[str, list[str]] = {
     'OF':  ['LF', 'CF', 'RF'],
     'IF':  ['1B', '2B', 'SS', '3B'],
     'DH':  ['DH'],
-    'TWP': ['P'],
 }
 
 BATTER_POSITIONS = {'C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF', 'DH'}
 
-BATCH_SIZE = 500
+
+def fetch_active_players(session: requests.Session, season: int) -> list[dict]:
+    r = session.get(
+        f'{MLB_API_BASE}/sports/1/players',
+        params={'season': season, 'gameType': 'R'},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json().get('people', [])
 
 
-def fetch_active_players(season: int) -> list[dict]:
-    response = statsapi.get('sports_players', {'sportId': 1, 'season': season, 'gameType': 'R'})
-    return response.get('people', [])
+def fetch_fielding_positions(session: requests.Session, season: int) -> dict[int, set[str]]:
+    """Returns mlb_id → set of fantasy positions earned via fielding stats this season."""
+    r = session.get(
+        f'{MLB_API_BASE}/stats',
+        params={
+            'stats': 'season',
+            'group': 'fielding',
+            'season': season,
+            'sportId': 1,
+            'limit': 5000,
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+
+    positions_by_player: dict[int, set[str]] = {}
+    for entry in r.json().get('stats', []):
+        for split in entry.get('splits', []):
+            player_id = split.get('player', {}).get('id')
+            pos_abbrev = split.get('position', {}).get('abbreviation', '')
+            games = split.get('stat', {}).get('gamesPlayed', 0)
+            if not player_id or games < MIN_GAMES_FOR_ELIGIBILITY:
+                continue
+            for pos in POSITION_MAP.get(pos_abbrev, []):
+                positions_by_player.setdefault(player_id, set()).add(pos)
+    return positions_by_player
 
 
 def main() -> None:
@@ -49,9 +86,14 @@ def main() -> None:
     season = date.today().year
     now = datetime.now(timezone.utc).isoformat()
 
-    print(f'Fetching active players for {season}...')
-    people = fetch_active_players(season)
-    print(f'Fetched {len(people)} players.')
+    with requests.Session() as http:
+        print(f'Fetching active players for {season}...')
+        people = fetch_active_players(http, season)
+        print(f'Fetched {len(people)} players.')
+
+        print('Fetching fielding stats...')
+        fielding_positions = fetch_fielding_positions(http, season)
+        print(f'Fetched fielding data for {len(fielding_positions)} players.')
 
     player_rows: list[dict] = []
     position_rows: list[dict] = []
@@ -77,13 +119,15 @@ def main() -> None:
             'updated_at': now,
         })
 
-        abbrev = p.get('primaryPosition', {}).get('abbreviation', '')
-        positions = POSITION_MAP.get(abbrev, [])
+        # Union of primary position and any additional positions from fielding stats.
+        primary_abbrev = p.get('primaryPosition', {}).get('abbreviation', '')
+        all_positions = set(POSITION_MAP.get(primary_abbrev, [])) | fielding_positions.get(mlb_id, set())
 
-        for pos in positions:
+        for pos in all_positions:
             position_rows.append({'player_id': mlb_id, 'position': pos, 'source': 'api'})
 
-        if any(pos in BATTER_POSITIONS for pos in positions) and 'DH' not in positions:
+        # Derived DH for all batter-eligible players who don't already have DH from the API.
+        if any(pos in BATTER_POSITIONS for pos in all_positions) and 'DH' not in all_positions:
             position_rows.append({'player_id': mlb_id, 'position': 'DH', 'source': 'derived'})
 
     print(f'Upserting {len(player_rows)} players...')
