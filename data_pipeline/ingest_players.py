@@ -43,6 +43,17 @@ POSITION_MAP: dict[str, list[str]] = {
 BATTER_POSITIONS = {'C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF', 'DH'}
 
 
+def fetch_team_abbreviations(session: requests.Session, season: int) -> dict[int, str]:
+    """Returns a mapping of team id → abbreviation for all MLB teams."""
+    r = session.get(
+        f'{MLB_API_BASE}/teams',
+        params={'sportId': 1, 'season': season},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return {t['id']: t.get('abbreviation', t.get('name', 'UNK')) for t in r.json().get('teams', [])}
+
+
 def fetch_active_players(session: requests.Session, season: int) -> list[dict]:
     r = session.get(
         f'{MLB_API_BASE}/sports/1/players',
@@ -87,6 +98,9 @@ def main() -> None:
     now = datetime.now(timezone.utc).isoformat()
 
     with requests.Session() as http:
+        print(f'Fetching team abbreviations for {season}...')
+        team_abbreviations = fetch_team_abbreviations(http, season)
+
         print(f'Fetching active players for {season}...')
         people = fetch_active_players(http, season)
         print(f'Fetched {len(people)} players.')
@@ -106,8 +120,8 @@ def main() -> None:
         if not mlb_id or throws not in ('L', 'R') or bats not in ('L', 'R', 'S'):
             continue
 
-        team = p.get('currentTeam', {})
-        mlb_team = team.get('abbreviation') or team.get('name') or 'FA'
+        team_id = p.get('currentTeam', {}).get('id')
+        mlb_team = team_abbreviations.get(team_id, 'FA') if team_id else 'FA'
 
         player_rows.append({
             'mlb_id':     mlb_id,
