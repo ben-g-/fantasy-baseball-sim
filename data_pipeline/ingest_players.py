@@ -73,6 +73,7 @@ def fetch_fielding_positions(session: requests.Session, season: int) -> dict[int
             'group': 'fielding',
             'season': season,
             'sportId': 1,
+            'playerPool': 'All',  # all players, as opposed to only statistically qualified ones
             'limit': 5000,
         },
         timeout=30,
@@ -81,7 +82,8 @@ def fetch_fielding_positions(session: requests.Session, season: int) -> dict[int
 
     positions_by_player: dict[int, set[str]] = {}
     for entry in r.json().get('stats', []):
-        for split in entry.get('splits', []):
+        all_splits = entry.get('splits', []) + entry.get('splitsTiedWithLimit', [])
+        for split in all_splits:
             player_id = split.get('player', {}).get('id')
             pos_abbrev = split.get('position', {}).get('abbreviation', '')
             games = split.get('stat', {}).get('gamesPlayed', 0)
@@ -121,7 +123,7 @@ def main() -> None:
             continue
 
         team_id = p.get('currentTeam', {}).get('id')
-        mlb_team = team_abbreviations.get(team_id, 'FA') if team_id else 'FA'
+        mlb_team = team_abbreviations.get(team_id) if team_id else None
 
         player_rows.append({
             'mlb_id':     mlb_id,

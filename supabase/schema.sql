@@ -54,7 +54,7 @@ CREATE TABLE players (
   last_name  TEXT        NOT NULL,
   throws     CHAR(1)     NOT NULL CHECK (throws IN ('L', 'R')),
   bats       CHAR(1)     NOT NULL CHECK (bats IN ('L', 'R', 'S')),
-  mlb_team   TEXT        NOT NULL,
+  mlb_team   TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
