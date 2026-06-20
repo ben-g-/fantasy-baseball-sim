@@ -11,7 +11,7 @@ app.use(cors({ origin: process.env.CORS_ORIGIN ?? '*' }));
 app.use(express.json());
 
 app.use('/api/v1', meRouter);
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.DEV_ENDPOINTS_ENABLED === 'true') {
   app.use('/api/v1', devRouter);
 }
 
