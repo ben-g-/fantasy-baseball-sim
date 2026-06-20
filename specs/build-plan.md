@@ -123,7 +123,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 ### Tasks
 
 **API**
-- GET /matchups/:id — full matchup response including both lineups, computed deadlines, player stats from pre-lock snapshots (use seeded placeholder stats for now)
+- GET /matchups/:id — full matchup response including both lineups, computed deadlines, player stats from pre-lock snapshots (use hardcoded placeholder stats for now — a single representative stat line applied to every batter and a separate one applied to every pitcher, defined as constants in the API; replaced with real stats queries in Phase 6)
 - PATCH /lineups/:id/sp — validate and save SP selection
 - PATCH /lineups/:id/batting-order — validate and save full batting order
 - GET /teams/:id/matchups — for home screen matchup list
