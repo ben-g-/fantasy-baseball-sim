@@ -1,6 +1,11 @@
 """
 Seed script for development. One-shot; run on a clean database after ingest_players.py.
-Usage: python scripts/seed.py  (requires .env with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+Creates bot users, creates leagues, populates the leagues with teams, populates the teams with players,
+and generates matchup schedules. Also configures 4 special matchup states for testing purposes.
+Usage: python scripts/seed.py
+Requires .env with
+- SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+- MANAGER_EMAIL_1 and MANAGER_EMAIL_2: emails of 2 real manager accounts that already exist in the system
 """
 
 import os

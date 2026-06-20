@@ -96,9 +96,10 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Schedule pipeline to run weekly (Render cron job service)
 
 **Seed data for development**
+- Manually create two real manager accounts
 - Create a seed script that inserts:
-  - Two test leagues of different sizes (e.g. 10 and 12 teams) to illustrate that league size can vary
-  - Two real test manager accounts (each in both leagues) plus placeholder bot managers filling the remaining slots in each league (8 in the 10-team league, 10 in the 12-team league)
+  - Two test leagues of different sizes (e.g. 10 and 12 teams) to illustrate that league size can vary, with both of the real manager accounts included in both leagues
+  - Placeholder bot managers to fill the remaining slots in each league (8 in the 10-team league, 10 in the 12-team league)
   - Realistic 22-player rosters for each team drawn from the players table; Shohei Ohtani must be included on one of the human-managed teams to enable interactive testing of two-way player logic
   - A matchup schedule for the current season
   - Multiple matchups in pre-configured states to allow testing any screen without waiting for real time to pass:
