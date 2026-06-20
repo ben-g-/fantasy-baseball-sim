@@ -204,30 +204,41 @@ def main() -> None:
             update['sim_status'] = 'sim_complete'
         client.table('matchups').update(update).eq('id', matchup['id']).execute()
 
-    # ── 8. Create lineups with SP set for states 2–4 ─────────────────────────
-    # Find a pitcher on manager 1's Alpha League roster
-    m1_roster_pids = [r['player_id'] for r in roster_rows
-                      if r['team_id'] == m1_l10_tid and r['league_id'] == l10_id]
-    pitcher_rows = (
-        client.table('player_positions')
-        .select('player_id')
-        .eq('position', 'P')
-        .in_('player_id', m1_roster_pids)
-        .limit(1)
-        .execute()
-        .data
-    )
-    sp_id = pitcher_rows[0]['player_id'] if pitcher_rows else None
+    # ── 8. Create lineups for both teams in all 4 special matchups ───────────
+    # States 2–4 get an SP set; state 1 gets an empty lineup row (SP deadline not yet passed).
+    def find_sp(team_id: str) -> int | None:
+        pids = [r['player_id'] for r in roster_rows
+                if r['team_id'] == team_id and r['league_id'] == l10_id]
+        rows = (
+            client.table('player_positions')
+            .select('player_id')
+            .eq('position', 'P')
+            .in_('player_id', pids)
+            .limit(1)
+            .execute()
+            .data
+        )
+        return rows[0]['player_id'] if rows else None
 
-    if sp_id:
-        for matchup in m1_matchups[1:]:  # states 2, 3, 4
-            client.table('lineups').insert({
-                'matchup_id': matchup['id'],
-                'team_id': m1_l10_tid,
-                'sp_player_id': sp_id,
-            }).execute()
-    else:
-        print('  Warning: no pitcher found on manager 1 roster; lineup SP not set for special matchups.')
+    m1_sp_id = find_sp(m1_l10_tid)
+    if not m1_sp_id:
+        print('  Warning: no pitcher found on manager 1 roster; SP not set for special matchups.')
+
+    for i, matchup in enumerate(m1_matchups):
+        sp_set = i >= 1  # states 2, 3, 4
+        opp_tid = (matchup['road_team_id'] if matchup['home_team_id'] == m1_l10_tid
+                   else matchup['home_team_id'])
+        opp_sp_id = find_sp(opp_tid) if sp_set else None
+
+        m1_row: dict = {'matchup_id': matchup['id'], 'team_id': m1_l10_tid}
+        if sp_set and m1_sp_id:
+            m1_row['sp_player_id'] = m1_sp_id
+        client.table('lineups').insert(m1_row).execute()
+
+        opp_row: dict = {'matchup_id': matchup['id'], 'team_id': opp_tid}
+        if sp_set and opp_sp_id:
+            opp_row['sp_player_id'] = opp_sp_id
+        client.table('lineups').insert(opp_row).execute()
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print('Done.')
@@ -236,9 +247,7 @@ def main() -> None:
     print(f'  Teams created: {len(l10_teams) + len(l12_teams)}')
     print(f'  Roster players inserted: {len(roster_rows)}')
     print(f'  Matchups created: {len(l10_matchups) + len(l12_matchups)}')
-    print(f'  Special states configured for weeks 1–4 of manager 1 in Alpha League')
-    if sp_id:
-        print(f'  SP set to player {sp_id} for special matchup states 2–4')
+    print(f'  Lineups created: 8 (both teams × 4 special matchups)')
 
 
 if __name__ == '__main__':
