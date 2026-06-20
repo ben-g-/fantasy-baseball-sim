@@ -91,7 +91,7 @@ CREATE TABLE matchups (
 CREATE TABLE lineups (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   matchup_id   UUID        NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
-  team_id      UUID        NOT NULL REFERENCES teams(id),
+  team_id      UUID        NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   sp_player_id INTEGER     REFERENCES players(mlb_id),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (matchup_id, team_id)
