@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase'
 import LoginView from '../views/LoginView.vue'
 import SignUpView from '../views/SignUpView.vue'
 import HomeView from '../views/HomeView.vue'
+import MatchupView from '../views/MatchupView.vue'
 import AuthCallbackView from '../views/AuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', component: HomeView, meta: { requiresAuth: true } },
+    { path: '/matchups/:id', component: MatchupView, meta: { requiresAuth: true } },
     { path: '/login', component: LoginView },
     { path: '/signup', component: SignUpView },
     { path: '/auth/callback', component: AuthCallbackView },

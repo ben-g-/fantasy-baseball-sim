@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
+import { apiError } from '../lib/errors';
 
 export const meRouter = Router();
 
@@ -14,7 +15,7 @@ meRouter.get('/me', requireAuth, async (req: Request, res: Response): Promise<vo
     .single();
 
   if (error || !profile) {
-    res.status(404).json({ error: 'Profile not found' });
+    res.status(404).json(apiError('not_found', 'Profile not found'));
     return;
   }
 
