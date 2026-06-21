@@ -44,10 +44,14 @@ def round_robin(teams: list) -> list[list[tuple]]:
     fixed = teams[0]
     rotating = list(teams[1:])
     rounds = []
-    for _ in range(n - 1):
+    for rnd in range(n - 1):
         pairs = []
         if fixed is not None and rotating[0] is not None:
-            pairs.append((fixed, rotating[0]))
+            # Alternate fixed team between home and road each round
+            if rnd % 2 == 0:
+                pairs.append((fixed, rotating[0]))
+            else:
+                pairs.append((rotating[0], fixed))
         for i in range(1, n // 2):
             a, b = rotating[i], rotating[n - 1 - i]
             if a is not None and b is not None:
@@ -122,29 +126,66 @@ def main() -> None:
                                   client.table('players').select('mlb_id').execute().data]
     all_player_ids.sort()
 
+    # Fetch all position eligibility upfront — reused for both roster assignment and
+    # lineup building in step 8, avoiding a second round-trip.
+    pos_rows = client.table('player_positions').select('player_id, position').limit(10000).execute().data
+    player_pos_map: dict[int, set[str]] = {}
+    for row in pos_rows:
+        player_pos_map.setdefault(row['player_id'], set()).add(row['position'])
+
+    REQUIRED_POSITIONS = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P']
+
     ohtani_present = OHTANI_MLB_ID in all_player_ids
-    if ohtani_present:
-        all_player_ids.remove(OHTANI_MLB_ID)
-
     all_teams = [(l10_id, tid) for tid in l10_tids] + [(l12_id, tid) for tid in l12_tids]
-    slots_needed = len(all_teams) * ROSTER_SIZE - (1 if ohtani_present else 0)
-    if len(all_player_ids) < slots_needed:
-        raise SystemExit(
-            f'Not enough players in DB: need {slots_needed}, have {len(all_player_ids)}. '
-            'Run ingest_players.py first.'
-        )
 
-    pool = iter(all_player_ids)
+    # Ohtani is pre-assigned to m1; everyone else goes into the shared pool.
+    available: set[int] = set(all_player_ids)
+    if ohtani_present:
+        available.discard(OHTANI_MLB_ID)
+
+    team_rosters: dict[str, list[int]] = {tid: [] for _, tid in all_teams}
+    if ohtani_present:
+        team_rosters[m1_l10_tid].append(OHTANI_MLB_ID)
+
+    # Greedy core assignment: process positions scarcest-first; for each team that
+    # lacks coverage at that position, pick the least-versatile eligible player so
+    # that flexible players are preserved for later positions.
+    pos_scarcity = sorted(
+        REQUIRED_POSITIONS,
+        key=lambda p: sum(1 for pid in available if p in player_pos_map.get(pid, set())),
+    )
+    for pos in pos_scarcity:
+        for _, tid in all_teams:
+            if any(pos in player_pos_map.get(pid, set()) for pid in team_rosters[tid]):
+                continue  # already covered (Ohtani may cover P and an OF slot for m1)
+            candidates = [pid for pid in available if pos in player_pos_map.get(pid, set())]
+            if not candidates:
+                raise SystemExit(
+                    f'Ran out of {pos}-eligible players during roster assignment. '
+                    'Run ingest_players.py first or reduce team count.'
+                )
+            chosen = min(candidates, key=lambda pid: len(player_pos_map.get(pid, set())))
+            team_rosters[tid].append(chosen)
+            available.discard(chosen)
+
+    # Fill remaining slots from the unassigned pool (sorted for determinism).
+    filler_pool = sorted(available)
+    total_filler_needed = sum(ROSTER_SIZE - len(team_rosters[tid]) for _, tid in all_teams)
+    if len(filler_pool) < total_filler_needed:
+        raise SystemExit(
+            f'Not enough remaining players: need {total_filler_needed} filler slots, '
+            f'have {len(filler_pool)}. Run ingest_players.py first.'
+        )
+    filler_iter = iter(filler_pool)
+
     roster_rows: list[dict] = []
     for lid, tid in all_teams:
-        players_for_team: list[int] = []
-        if lid == l10_id and tid == m1_l10_tid and ohtani_present:
-            players_for_team.append(OHTANI_MLB_ID)
-        while len(players_for_team) < ROSTER_SIZE:
-            players_for_team.append(next(pool))
+        filler_count = ROSTER_SIZE - len(team_rosters[tid])
+        for _ in range(filler_count):
+            team_rosters[tid].append(next(filler_iter))
         roster_rows.extend(
             {'team_id': tid, 'player_id': pid, 'league_id': lid}
-            for pid in players_for_team
+            for pid in team_rosters[tid]
         )
 
     # Insert in batches of 500 to stay within API limits
@@ -205,13 +246,8 @@ def main() -> None:
         client.table('matchups').update(update).eq('id', matchup['id']).execute()
 
     # ── 8. Create lineups (with SP and batting order) for both teams in all 4 matchups ─
-    # Fetch all position eligibility for Alpha League rosters in one query.
-    l10_roster_pids = [r['player_id'] for r in roster_rows if r['league_id'] == l10_id]
-    pos_data = (client.table('player_positions').select('player_id, position')
-                .in_('player_id', l10_roster_pids).execute().data)
-    eligible: dict[int, set[str]] = {}
-    for row in pos_data:
-        eligible.setdefault(row['player_id'], set()).add(row['position'])
+    # Reuse the position map fetched in step 5 — no additional DB query needed.
+    eligible = player_pos_map
 
     def find_sp(team_id: str) -> int | None:
         pids = [r['player_id'] for r in roster_rows
