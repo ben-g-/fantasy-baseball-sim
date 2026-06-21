@@ -189,18 +189,15 @@ const es = computed(() => [
               />
             </div>
           </div>
-          <div v-if="panel.lineup.sp?.player">
-            <span class="font-medium">{{ panel.lineup.sp.player.full_name }}</span>
-            <span class="text-color-secondary text-sm ml-2">{{ panel.lineup.sp.player.mlb_team }}</span>
-            <span class="text-color-secondary text-sm ml-1">· {{ editors[i].pitcherHand(panel.lineup.sp.player) }}</span>
-            <template v-if="panel.lineup.sp.player.obp_allowed != null">
-              <span class="text-color-secondary text-sm ml-1">
-                · OBP {{ panel.lineup.sp.player.obp_allowed.toFixed(3) }}
-                / SLG {{ panel.lineup.sp.player.slg_allowed?.toFixed(3) }}
-              </span>
-            </template>
+          <div v-if="panel.lineup.sp?.player" class="sp-subcard">
+            <span class="sp-name">{{ panel.lineup.sp.player.full_name }}</span>
+            <span class="sp-stats">
+              {{ panel.lineup.sp.player.mlb_team }} · {{ editors[i].pitcherHand(panel.lineup.sp.player) }}<template v-if="panel.lineup.sp.player.obp_allowed != null"> · OBP {{ panel.lineup.sp.player.obp_allowed.toFixed(3) }} / SLG {{ panel.lineup.sp.player.slg_allowed?.toFixed(3) }}</template>
+            </span>
           </div>
-          <div v-else class="text-color-secondary text-sm" style="font-style: italic;">No SP set</div>
+          <div v-else class="sp-subcard">
+            <span class="sp-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+          </div>
         </div>
 
         <!-- Batting order cards (row 3) -->
@@ -317,6 +314,26 @@ const es = computed(() => [
   column-gap: 1.5rem;
   row-gap: 0.75rem;
   align-items: start;
+}
+
+/* ── SP subcard ─────────────────────────────────────── */
+.sp-subcard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.625rem;
+  background: var(--p-surface-50);
+  border-radius: 6px;
+}
+
+.sp-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sp-stats {
+  font-size: 0.7rem;
+  color: var(--p-surface-500);
 }
 
 /* ── Batting order rows ──────────────────────────────── */
