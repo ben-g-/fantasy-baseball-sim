@@ -171,33 +171,53 @@ const es = computed(() => [
           <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
         </div>
 
-        <!-- SP cards (row 2) -->
-        <div v-for="(panel, i) in panels" :key="`sp-${i}`" class="surface-card border-round p-3">
-          <div class="flex align-items-center justify-content-between mb-2">
-            <span class="section-label">Starting Pitcher</span>
-            <div class="flex align-items-center gap-2">
-              <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-                {{ deadlineText(es[i].spDeadlineIso) }}
-              </span>
-              <!-- Always reserve Change button space so both SP cards have equal height -->
-              <Button
-                label="Change"
-                size="small"
-                text
-                :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
-                @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
-              />
+        <!-- SP + Bullpen side-by-side (row 2) -->
+        <div v-for="(panel, i) in panels" :key="`pitcher-${i}`" class="pitcher-section">
+
+          <!-- SP card -->
+          <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
+            <div class="sp-header mb-2">
+              <span class="section-label">Starting Pitcher</span>
+              <div class="flex align-items-center gap-1">
+                <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                  {{ deadlineText(es[i].spDeadlineIso) }}
+                </span>
+                <Button
+                  label="Change"
+                  size="small"
+                  text
+                  :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
+                  @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
+                />
+              </div>
+            </div>
+            <div v-if="panel.lineup.sp?.player" class="sp-subcard">
+              <span class="sp-name">{{ panel.lineup.sp.player.full_name }}</span>
+              <span class="sp-stats">{{ panel.lineup.sp.player.mlb_team }} · {{ editors[i].pitcherHand(panel.lineup.sp.player) }}</span>
+              <span v-if="panel.lineup.sp.player.obp_allowed != null" class="sp-stats">OBP {{ panel.lineup.sp.player.obp_allowed.toFixed(3) }} / SLG {{ panel.lineup.sp.player.slg_allowed?.toFixed(3) }}</span>
+            </div>
+            <div v-else class="sp-subcard">
+              <span class="sp-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
             </div>
           </div>
-          <div v-if="panel.lineup.sp?.player" class="sp-subcard">
-            <span class="sp-name">{{ panel.lineup.sp.player.full_name }}</span>
-            <span class="sp-stats">
-              {{ panel.lineup.sp.player.mlb_team }} · {{ editors[i].pitcherHand(panel.lineup.sp.player) }}<template v-if="panel.lineup.sp.player.obp_allowed != null"> · OBP {{ panel.lineup.sp.player.obp_allowed.toFixed(3) }} / SLG {{ panel.lineup.sp.player.slg_allowed?.toFixed(3) }}</template>
-            </span>
+
+          <!-- Bullpen card -->
+          <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
+            <div class="section-label mb-2">Bullpen</div>
+            <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+            <div
+              v-for="(b, bi) in panel.lineup.bullpen"
+              :key="bi"
+              class="flex align-items-center justify-content-between py-1"
+              :style="`font-size: 0.875rem;${bi > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
+            >
+              <span>{{ b.player?.full_name ?? '—' }}</span>
+              <span class="text-color-secondary" style="font-size: 0.75rem; white-space: nowrap; margin-left: 0.5rem;">
+                {{ editors[i].pitcherHand(b.player) }}
+              </span>
+            </div>
           </div>
-          <div v-else class="sp-subcard">
-            <span class="sp-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
-          </div>
+
         </div>
 
         <!-- Batting order cards (row 3) -->
@@ -265,23 +285,6 @@ const es = computed(() => [
           </div>
         </div>
 
-        <!-- Bullpen cards (row 5) -->
-        <div v-for="(panel, i) in panels" :key="`bullpen-${i}`" class="surface-card border-round p-3">
-          <div class="section-label mb-2">Bullpen</div>
-          <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-          <div
-            v-for="(b, bi) in panel.lineup.bullpen"
-            :key="bi"
-            class="flex align-items-center justify-content-between py-1"
-            :style="`font-size: 0.875rem;${bi > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
-          >
-            <span>{{ b.player?.full_name ?? '—' }}</span>
-            <span class="text-color-secondary" style="font-size: 0.75rem;">
-              {{ editors[i].pitcherHand(b.player) }}
-              <template v-if="b.player?.obp_allowed != null">· OBP {{ b.player.obp_allowed.toFixed(3) }}</template>
-            </span>
-          </div>
-        </div>
 
       </div>
 
@@ -323,6 +326,21 @@ const es = computed(() => [
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--p-surface-400);
+}
+
+/* ── Pitcher section (SP + Bullpen side-by-side) ────── */
+.pitcher-section {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.sp-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
 }
 
 /* ── SP subcard ─────────────────────────────────────── */
