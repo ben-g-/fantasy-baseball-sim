@@ -4,7 +4,7 @@
 
 <style>
 body {
-  background-color: var(--surface-ground);
+  background-color: var(--p-surface-50);
   min-height: 100vh;
   margin: 0;
 }
