@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getMatchup, type Matchup } from '../lib/api'
-import { useLineupPanel } from '../composables/useLineupPanel'
+import { getMatchup, type Matchup, type Player } from '../lib/api'
+import { useLineupPanel, splitsStats } from '../composables/useLineupPanel'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Dialog from 'primevue/dialog'
@@ -87,6 +87,27 @@ function statusLabel(status: string) {
   if (status === 'sim_complete') return 'Final'
   if (status === 'sim_error')    return 'Error'
   return status
+}
+
+// ── Player display helpers ───────────────────────────────────────────────────
+// Line 2: "PHI · LHP" for pitchers, "PHI · L" for batters
+function playerDetail(player: Player | null | undefined): string {
+  if (!player) return ''
+  const isPitcher = player.obp_allowed != null
+  const descriptor = isPitcher ? (player.throws === 'L' ? 'LHP' : 'RHP') : player.bats
+  return [player.mlb_team, descriptor].filter(Boolean).join(' · ')
+}
+
+// Line 3: OBP / SLG — pitcher allowed stats or batter splits
+function playerStats(player: Player | null | undefined): string | null {
+  if (!player) return null
+  if (player.obp_allowed != null) {
+    return `OBP ${player.obp_allowed.toFixed(3)} / SLG ${player.slg_allowed?.toFixed(3) ?? '—'}`
+  }
+  const s = player.vs_rhp ?? player.vs_lhp
+  if (!s) return null
+  const { obp, slg } = splitsStats(s)
+  return `OBP ${obp.toFixed(3)} / SLG ${slg.toFixed(3)}`
 }
 
 // Per-panel composables — panels[0] is always the user's team (left column)
@@ -191,13 +212,13 @@ const es = computed(() => [
                 />
               </div>
             </div>
-            <div v-if="panel.lineup.sp?.player" class="sp-subcard">
-              <span class="sp-name">{{ panel.lineup.sp.player.full_name }}</span>
-              <span class="sp-stats">{{ panel.lineup.sp.player.mlb_team }} · {{ editors[i].pitcherHand(panel.lineup.sp.player) }}</span>
-              <span v-if="panel.lineup.sp.player.obp_allowed != null" class="sp-stats">OBP {{ panel.lineup.sp.player.obp_allowed.toFixed(3) }} / SLG {{ panel.lineup.sp.player.slg_allowed?.toFixed(3) }}</span>
+            <div v-if="panel.lineup.sp?.player" class="player-card">
+              <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
+              <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
+              <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
             </div>
-            <div v-else class="sp-subcard">
-              <span class="sp-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+            <div v-else class="player-card">
+              <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
             </div>
           </div>
 
@@ -205,10 +226,11 @@ const es = computed(() => [
           <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
             <div class="section-label mb-2">Bullpen</div>
             <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-            <div class="bo-list">
-              <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="sp-subcard">
-                <span class="sp-name">{{ b.player?.full_name ?? '—' }}</span>
-                <span class="sp-stats">{{ editors[i].pitcherHand(b.player) }}</span>
+            <div class="player-list">
+              <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
+                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
               </div>
             </div>
           </div>
@@ -224,7 +246,7 @@ const es = computed(() => [
             </span>
           </div>
 
-          <div class="bo-list">
+          <div class="player-list">
             <div
               v-for="(item, idx) in es[i].boDisplayItems"
               :key="item.player_id"
@@ -239,8 +261,9 @@ const es = computed(() => [
               <span class="bo-grip" :style="panel.isMyTeam && !es[i].boLocked ? '' : 'visibility: hidden'">⠿</span>
               <span class="bo-num">{{ idx + 1 }}</span>
               <div class="bo-player">
-                <span class="bo-name">{{ item.full_name }}</span>
-                <span v-if="item.obp != null" class="bo-stats">
+                <span class="player-name">{{ item.full_name }}</span>
+                <span class="player-detail">{{ item.mlb_team }} · {{ item.bats }}</span>
+                <span v-if="item.obp != null" class="player-detail">
                   OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
                 </span>
               </div>
@@ -269,10 +292,11 @@ const es = computed(() => [
         <div v-for="(panel, i) in panels" :key="`bench-${i}`" class="surface-card border-round p-3">
           <div class="section-label mb-2">Bench</div>
           <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-          <div class="bo-list">
-            <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="sp-subcard">
-              <span class="sp-name">{{ b.player?.full_name ?? '—' }}</span>
-              <span class="sp-stats">{{ b.player?.display_positions.join(' · ') }}</span>
+          <div class="player-list">
+            <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="player-card">
+              <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+              <span class="player-detail">{{ playerDetail(b.player) }}</span>
+              <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
             </div>
           </div>
         </div>
@@ -287,13 +311,13 @@ const es = computed(() => [
         <div
           v-for="player in left.spCandidates.value"
           :key="player.mlb_id"
-          class="sp-subcard mb-1"
+          class="player-card mb-1"
           style="cursor: pointer;"
           @click="!left.spSaving.value && left.selectSP(player)"
         >
-          <span class="sp-name">{{ player.full_name }}</span>
-          <span class="sp-stats">{{ player.mlb_team }} · {{ left.pitcherHand(player) }}</span>
-          <span v-if="player.obp_allowed != null" class="sp-stats">OBP {{ player.obp_allowed.toFixed(3) }} / SLG {{ player.slg_allowed?.toFixed(3) }}</span>
+          <span class="player-name">{{ player.full_name }}</span>
+          <span class="player-detail">{{ playerDetail(player) }}</span>
+          <span v-if="playerStats(player)" class="player-detail">{{ playerStats(player) }}</span>
         </div>
       </Dialog>
     </template>
@@ -333,8 +357,8 @@ const es = computed(() => [
   gap: 0.25rem;
 }
 
-/* ── SP subcard ─────────────────────────────────────── */
-.sp-subcard {
+/* ── Shared player subcard ──────────────────────────── */
+.player-card {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -343,23 +367,27 @@ const es = computed(() => [
   border-radius: 6px;
 }
 
-.sp-name {
+.player-name {
   font-size: 0.875rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.sp-stats {
+.player-detail {
   font-size: 0.7rem;
   color: var(--p-surface-500);
 }
 
-/* ── Batting order rows ──────────────────────────────── */
-.bo-list {
+/* ── Player list (bullpen, bench) ───────────────────── */
+.player-list {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
 }
 
+/* ── Batting order rows ──────────────────────────────── */
 .bo-row {
   display: flex;
   align-items: center;
@@ -398,18 +426,6 @@ const es = computed(() => [
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
-}
-
-.bo-name {
-  font-size: 0.875rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bo-stats {
-  font-size: 0.7rem;
-  color: var(--p-surface-500);
 }
 
 .bo-pos {

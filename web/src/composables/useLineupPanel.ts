@@ -6,11 +6,13 @@ export interface DisplayEntry {
   field_position: string
   player_id: number
   full_name: string
+  mlb_team: string
+  bats: string
   obp: number | null
   slg: number | null
 }
 
-function splitsStats(s: BatterSplits): { obp: number; slg: number } {
+export function splitsStats(s: BatterSplits): { obp: number; slg: number } {
   const h = s.singles + s.doubles + s.triples + s.hr
   const ab = s.pa - s.bb - s.hbp
   const tb = s.singles + 2 * s.doubles + 3 * s.triples + 4 * s.hr
@@ -104,6 +106,8 @@ export function useLineupPanel(
           field_position: e.field_position,
           player_id: e.player?.mlb_id ?? 0,
           full_name: e.player?.full_name ?? '—',
+          mlb_team: e.player?.mlb_team ?? '',
+          bats: e.player?.bats ?? '',
           obp: stats?.obp ?? null,
           slg: stats?.slg ?? null,
         }
