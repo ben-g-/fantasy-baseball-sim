@@ -89,6 +89,13 @@ function statusLabel(status: string) {
   return status
 }
 
+// ── Sorting helpers ──────────────────────────────────────────────────────────
+function sortedByLastName<T extends { player: { last_name: string } | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) =>
+    (a.player?.last_name ?? '').localeCompare(b.player?.last_name ?? ''),
+  )
+}
+
 // ── Player display helpers ───────────────────────────────────────────────────
 // Line 2: "PHI · LHP" for pitchers, "PHI · L" for batters
 function playerDetail(player: Player | null | undefined): string {
@@ -234,7 +241,7 @@ const es = computed(() => [
                 <div class="section-label mb-2">Bullpen</div>
                 <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
                 <div class="player-list">
-                  <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
+                  <div v-for="(b, bi) in sortedByLastName(panel.lineup.bullpen)" :key="bi" class="player-card">
                     <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
                     <span class="player-detail">{{ playerDetail(b.player) }}</span>
                     <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
@@ -301,7 +308,7 @@ const es = computed(() => [
             <div class="section-label mb-2">Bench</div>
             <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-list">
-              <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="player-card">
+              <div v-for="(b, bi) in sortedByLastName(panel.lineup.bench)" :key="bi" class="player-card">
                 <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
                 <span class="player-detail">{{ playerDetail(b.player) }}</span>
                 <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
