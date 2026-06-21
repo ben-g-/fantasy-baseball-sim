@@ -226,10 +226,12 @@ const es = computed(() => [
             >
               <span class="bo-grip" :style="panel.isMyTeam && !es[i].boLocked ? '' : 'visibility: hidden'">⠿</span>
               <span class="bo-num">{{ idx + 1 }}</span>
-              <span class="bo-name">{{ item.full_name }}</span>
-              <span v-if="item.obp != null" class="bo-stats">
-                OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
-              </span>
+              <div class="bo-player">
+                <span class="bo-name">{{ item.full_name }}</span>
+                <span v-if="item.obp != null" class="bo-stats">
+                  OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
+                </span>
+              </div>
               <span class="bo-pos">{{ item.field_position }}</span>
             </div>
           </div>
@@ -356,16 +358,24 @@ const es = computed(() => [
   flex-shrink: 0;
 }
 
-.bo-name {
+.bo-player {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.bo-name {
   font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bo-stats {
   font-size: 0.7rem;
   color: var(--p-surface-500);
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .bo-pos {
