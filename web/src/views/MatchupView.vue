@@ -182,124 +182,130 @@ const es = computed(() => [
         </div>
       </div>
 
-      <!-- One card per team, four sections inside each -->
+      <!-- One card per team; subgrid aligns corresponding sections across both columns -->
       <div v-if="panels.length === 2" class="two-col">
 
-        <div v-for="(panel, i) in panels" :key="`team-${i}`" class="surface-card border-round p-3">
+        <div v-for="(panel, i) in panels" :key="`team-${i}`"
+             class="surface-card border-round team-card"
+             :style="`grid-column: ${i + 1}`">
 
-          <!-- Team header -->
-          <div class="flex align-items-center gap-2 mb-3">
-            <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
-            <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
-            <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
+          <!-- Section 1: Header -->
+          <div class="tc-section">
+            <div class="flex align-items-center gap-2">
+              <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
+              <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
+              <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
+            </div>
           </div>
 
-          <!-- SP + Bullpen side-by-side -->
-          <div class="pitcher-section mb-1">
+          <!-- Section 2: SP + Bullpen side-by-side -->
+          <div class="tc-section">
+            <div class="pitcher-section">
 
-            <!-- SP -->
-            <div style="flex: 1; min-width: 0;">
-              <div class="sp-header mb-2">
-                <span class="section-label">Starting Pitcher</span>
-                <div class="flex align-items-center gap-1">
-                  <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-                    {{ deadlineText(es[i].spDeadlineIso) }}
+              <!-- SP -->
+              <div style="flex: 1; min-width: 0;">
+                <div class="sp-header mb-2">
+                  <span class="section-label">Starting Pitcher</span>
+                  <div class="flex align-items-center gap-1">
+                    <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                      {{ deadlineText(es[i].spDeadlineIso) }}
+                    </span>
+                    <Button
+                      label="Change"
+                      size="small"
+                      text
+                      :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
+                      @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
+                    />
+                  </div>
+                </div>
+                <div v-if="panel.lineup.sp?.player" class="player-card">
+                  <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
+                  <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
+                  <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
+                </div>
+                <div v-else class="player-card">
+                  <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+                </div>
+              </div>
+
+              <!-- Bullpen -->
+              <div style="flex: 1; min-width: 0;">
+                <div class="section-label mb-2">Bullpen</div>
+                <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+                <div class="player-list">
+                  <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
+                    <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                    <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                    <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Section 3: Batting Order -->
+          <div class="tc-section">
+            <div class="flex align-items-center justify-content-between mb-2">
+              <span class="section-label">Batting Order</span>
+              <span class="text-xs" :style="es[i].boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                {{ deadlineText(matchup.deadlines.batting_order) }}
+              </span>
+            </div>
+
+            <div class="player-list">
+              <div
+                v-for="(item, idx) in es[i].boDisplayItems"
+                :key="item.player_id"
+                class="bo-row"
+                :class="{ 'bo-drag-over': es[i].dragOverIndex === idx && es[i].dragIndex !== idx }"
+                :draggable="panel.isMyTeam && !es[i].boLocked"
+                @dragstart="panel.isMyTeam && !es[i].boLocked ? editors[i].onDragStart(idx) : undefined"
+                @dragend="editors[i].onDragEnd()"
+                @dragover.prevent="panel.isMyTeam && !es[i].boLocked ? editors[i].onDragOver(idx) : undefined"
+                @drop.prevent="panel.isMyTeam && !es[i].boLocked ? editors[i].onDrop(idx) : undefined"
+              >
+                <span class="bo-grip" :style="panel.isMyTeam && !es[i].boLocked ? '' : 'visibility: hidden'">⠿</span>
+                <span class="bo-num">{{ idx + 1 }}</span>
+                <div class="bo-player">
+                  <span class="player-name">{{ item.full_name }}</span>
+                  <span class="player-detail">{{ item.mlb_team }} · {{ item.bats }}</span>
+                  <span v-if="item.obp != null" class="player-detail">
+                    OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
                   </span>
-                  <Button
-                    label="Change"
-                    size="small"
-                    text
-                    :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
-                    @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
-                  />
                 </div>
-              </div>
-              <div v-if="panel.lineup.sp?.player" class="player-card">
-                <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
-                <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
-                <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
-              </div>
-              <div v-else class="player-card">
-                <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+                <span class="bo-pos">{{ item.field_position }}</span>
               </div>
             </div>
 
-            <!-- Bullpen -->
-            <div style="flex: 1; min-width: 0;">
-              <div class="section-label mb-2">Bullpen</div>
-              <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-              <div class="player-list">
-                <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
-                  <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                  <span class="player-detail">{{ playerDetail(b.player) }}</span>
-                  <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div class="section-divider" />
-
-          <!-- Batting Order -->
-          <div class="flex align-items-center justify-content-between mb-2">
-            <span class="section-label">Batting Order</span>
-            <span class="text-xs" :style="es[i].boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-              {{ deadlineText(matchup.deadlines.batting_order) }}
-            </span>
-          </div>
-
-          <div class="player-list">
+            <!-- Save / Revert bar -->
             <div
-              v-for="(item, idx) in es[i].boDisplayItems"
-              :key="item.player_id"
-              class="bo-row"
-              :class="{ 'bo-drag-over': es[i].dragOverIndex === idx && es[i].dragIndex !== idx }"
-              :draggable="panel.isMyTeam && !es[i].boLocked"
-              @dragstart="panel.isMyTeam && !es[i].boLocked ? editors[i].onDragStart(idx) : undefined"
-              @dragend="editors[i].onDragEnd()"
-              @dragover.prevent="panel.isMyTeam && !es[i].boLocked ? editors[i].onDragOver(idx) : undefined"
-              @drop.prevent="panel.isMyTeam && !es[i].boLocked ? editors[i].onDrop(idx) : undefined"
+              v-if="panel.isMyTeam && !es[i].boLocked && es[i].hasBoChanges"
+              class="flex align-items-center justify-content-between mt-3"
             >
-              <span class="bo-grip" :style="panel.isMyTeam && !es[i].boLocked ? '' : 'visibility: hidden'">⠿</span>
-              <span class="bo-num">{{ idx + 1 }}</span>
-              <div class="bo-player">
-                <span class="player-name">{{ item.full_name }}</span>
-                <span class="player-detail">{{ item.mlb_team }} · {{ item.bats }}</span>
-                <span v-if="item.obp != null" class="player-detail">
-                  OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
-                </span>
+              <span v-if="es[i].boError" class="text-sm" style="color: var(--red-500);">{{ es[i].boError }}</span>
+              <div class="flex gap-2 ml-auto">
+                <Button label="Revert" severity="secondary" outlined size="small"
+                  :disabled="es[i].boSaving"
+                  @click="editors[i].revertBattingOrder()" />
+                <Button label="Save order" size="small"
+                  :loading="es[i].boSaving"
+                  @click="editors[i].saveBattingOrder()" />
               </div>
-              <span class="bo-pos">{{ item.field_position }}</span>
             </div>
           </div>
 
-          <!-- Save / Revert bar -->
-          <div
-            v-if="panel.isMyTeam && !es[i].boLocked && es[i].hasBoChanges"
-            class="flex align-items-center justify-content-between mt-3"
-          >
-            <span v-if="es[i].boError" class="text-sm" style="color: var(--red-500);">{{ es[i].boError }}</span>
-            <div class="flex gap-2 ml-auto">
-              <Button label="Revert" severity="secondary" outlined size="small"
-                :disabled="es[i].boSaving"
-                @click="editors[i].revertBattingOrder()" />
-              <Button label="Save order" size="small"
-                :loading="es[i].boSaving"
-                @click="editors[i].saveBattingOrder()" />
-            </div>
-          </div>
-
-          <div class="section-divider" />
-
-          <!-- Bench -->
-          <div class="section-label mb-2">Bench</div>
-          <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-          <div class="player-list">
-            <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="player-card">
-              <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-              <span class="player-detail">{{ playerDetail(b.player) }}</span>
-              <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+          <!-- Section 4: Bench -->
+          <div class="tc-section">
+            <div class="section-label mb-2">Bench</div>
+            <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+            <div class="player-list">
+              <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="player-card">
+                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+              </div>
             </div>
           </div>
 
@@ -328,17 +334,29 @@ const es = computed(() => [
 </template>
 
 <style scoped>
+/* 4 named row tracks — one per section. team-card subgrid cells align to these tracks,
+   so corresponding sections (pitchers, batting order, bench) are always the same height. */
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
+  grid-template-rows: repeat(4, auto);
+  column-gap: 1.5rem;
 }
 
-.section-divider {
-  height: 1px;
-  background: var(--p-surface-200);
-  margin: 0.75rem -0.75rem;
+/* Span all 4 rows; subgrid means the card's 4 direct children use the parent's row tracks */
+.team-card {
+  grid-row: 1 / 5;
+  display: grid;
+  grid-template-rows: subgrid;
+  overflow: hidden; /* clips content to border-round radius */
+}
+
+.tc-section {
+  padding: 0.75rem;
+}
+
+.tc-section + .tc-section {
+  border-top: 1px solid var(--p-surface-200);
 }
 
 /* ── Section labels ─────────────────────────────────── */
