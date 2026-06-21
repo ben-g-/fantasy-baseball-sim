@@ -85,10 +85,28 @@ lineupsRouter.patch('/lineups/:id/sp', requireAuth, async (req: Request, res: Re
     return;
   }
 
+  const oldSpId = lineup.sp_player_id;
+
+  await supabase.from('lineups').update({ sp_player_id }).eq('id', id);
+
+  // Rule 1: if old SP held the P batting slot, give it to the new SP.
+  if (oldSpId != null) {
+    await supabase
+      .from('lineup_batting_order')
+      .update({ player_id: sp_player_id })
+      .eq('lineup_id', id)
+      .eq('player_id', oldSpId)
+      .eq('field_position', 'P');
+  }
+
+  // Rule 2: if new SP is already in the batting order at a non-P position,
+  // flip their field_position to P (e.g. was playing DH).
   await supabase
-    .from('lineups')
-    .update({ sp_player_id })
-    .eq('id', id);
+    .from('lineup_batting_order')
+    .update({ field_position: 'P' })
+    .eq('lineup_id', id)
+    .eq('player_id', sp_player_id)
+    .neq('field_position', 'P');
 
   res.json({ id, sp_player_id, locks_at: spDeadline });
 });
