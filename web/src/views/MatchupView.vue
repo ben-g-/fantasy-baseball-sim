@@ -28,6 +28,24 @@ async function load() {
 
 onMounted(load)
 
+const panels = computed(() => {
+  if (!matchup.value) return []
+  const m = matchup.value
+  const home = {
+    lineup: m.home_lineup,
+    teamName: m.home_team?.name ?? '',
+    isHome: true,
+    isMyTeam: m.my_team_id === m.home_team?.id,
+  }
+  const road = {
+    lineup: m.road_lineup,
+    teamName: m.road_team?.name ?? '',
+    isHome: false,
+    isMyTeam: m.my_team_id === m.road_team?.id,
+  }
+  return road.isMyTeam ? [road, home] : [home, road]
+})
+
 const deadlineItems = computed(() => {
   if (!matchup.value) return []
   const { deadlines } = matchup.value
@@ -130,26 +148,17 @@ function statusLabel(status: string) {
         </div>
       </div>
 
-      <!-- Two-column lineup grid -->
+      <!-- Two-column lineup grid (my team always left) -->
       <div
         style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;"
       >
         <LineupPanel
-          v-if="matchup.home_lineup && matchup.home_team"
-          :lineup="matchup.home_lineup"
-          :team-name="matchup.home_team.name"
-          :is-home="true"
-          :is-my-team="matchup.my_team_id === matchup.home_team.id"
-          :deadlines="matchup.deadlines"
-          @updated="load"
-        />
-
-        <LineupPanel
-          v-if="matchup.road_lineup && matchup.road_team"
-          :lineup="matchup.road_lineup"
-          :team-name="matchup.road_team.name"
-          :is-home="false"
-          :is-my-team="matchup.my_team_id === matchup.road_team.id"
+          v-for="panel in panels"
+          :key="panel.isHome ? 'home' : 'road'"
+          :lineup="panel.lineup"
+          :team-name="panel.teamName"
+          :is-home="panel.isHome"
+          :is-my-team="panel.isMyTeam"
           :deadlines="matchup.deadlines"
           @updated="load"
         />
