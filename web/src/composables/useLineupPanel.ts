@@ -1,11 +1,23 @@
 import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
-import { patchSP, patchBattingOrder, type Lineup, type Deadlines, type Player } from '../lib/api'
+import { patchSP, patchBattingOrder, type Lineup, type Deadlines, type Player, type BatterSplits } from '../lib/api'
 
 export interface DisplayEntry {
   field_position: string
   player_id: number
   full_name: string
+  obp: number | null
+  slg: number | null
+}
+
+function splitsStats(s: BatterSplits): { obp: number; slg: number } {
+  const h = s.singles + s.doubles + s.triples + s.hr
+  const ab = s.pa - s.bb - s.hbp
+  const tb = s.singles + 2 * s.doubles + 3 * s.triples + 4 * s.hr
+  return {
+    obp: s.pa > 0 ? (h + s.bb + s.hbp) / s.pa : 0,
+    slg: ab > 0 ? tb / ab : 0,
+  }
 }
 
 export function useLineupPanel(
@@ -85,11 +97,17 @@ export function useLineupPanel(
     return lineup.batting_order
       .slice()
       .sort((a, b) => a.batting_position - b.batting_position)
-      .map((e) => ({
-        field_position: e.field_position,
-        player_id: e.player?.mlb_id ?? 0,
-        full_name: e.player?.full_name ?? '—',
-      }))
+      .map((e) => {
+        const splits = e.player?.vs_rhp ?? e.player?.vs_lhp ?? null
+        const stats = splits ? splitsStats(splits) : null
+        return {
+          field_position: e.field_position,
+          player_id: e.player?.mlb_id ?? 0,
+          full_name: e.player?.full_name ?? '—',
+          obp: stats?.obp ?? null,
+          slg: stats?.slg ?? null,
+        }
+      })
   }
 
   watch(
