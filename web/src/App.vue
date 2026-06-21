@@ -10,7 +10,7 @@ body {
 }
 
 .surface-card {
-  background-color: #ffffff;
+  background-color: #ffffff !important;
   border: 1px solid var(--p-surface-200);
 }
 </style>
