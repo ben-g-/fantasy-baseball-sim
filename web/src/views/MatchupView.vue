@@ -182,63 +182,66 @@ const es = computed(() => [
         </div>
       </div>
 
-      <!-- Two-column section grid: corresponding sections are CSS siblings → same height -->
-      <div v-if="panels.length === 2" class="sections-grid">
+      <!-- One card per team, four sections inside each -->
+      <div v-if="panels.length === 2" class="two-col">
 
-        <!-- Column headers (row 1) -->
-        <div v-for="(panel, i) in panels" :key="`hdr-${i}`" class="flex align-items-center gap-2 mb-1">
-          <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
-          <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
-          <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
-        </div>
+        <div v-for="(panel, i) in panels" :key="`team-${i}`" class="surface-card border-round p-3">
 
-        <!-- SP + Bullpen side-by-side (row 2) -->
-        <div v-for="(panel, i) in panels" :key="`pitcher-${i}`" class="pitcher-section">
-
-          <!-- SP card -->
-          <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
-            <div class="sp-header mb-2">
-              <span class="section-label">Starting Pitcher</span>
-              <div class="flex align-items-center gap-1">
-                <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-                  {{ deadlineText(es[i].spDeadlineIso) }}
-                </span>
-                <Button
-                  label="Change"
-                  size="small"
-                  text
-                  :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
-                  @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
-                />
-              </div>
-            </div>
-            <div v-if="panel.lineup.sp?.player" class="player-card">
-              <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
-              <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
-              <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
-            </div>
-            <div v-else class="player-card">
-              <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
-            </div>
+          <!-- Team header -->
+          <div class="flex align-items-center gap-2 mb-3">
+            <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
+            <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
+            <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
           </div>
 
-          <!-- Bullpen card -->
-          <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
-            <div class="section-label mb-2">Bullpen</div>
-            <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-            <div class="player-list">
-              <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
-                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                <span class="player-detail">{{ playerDetail(b.player) }}</span>
-                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+          <!-- SP + Bullpen side-by-side -->
+          <div class="pitcher-section mb-1">
+
+            <!-- SP -->
+            <div style="flex: 1; min-width: 0;">
+              <div class="sp-header mb-2">
+                <span class="section-label">Starting Pitcher</span>
+                <div class="flex align-items-center gap-1">
+                  <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                    {{ deadlineText(es[i].spDeadlineIso) }}
+                  </span>
+                  <Button
+                    label="Change"
+                    size="small"
+                    text
+                    :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
+                    @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
+                  />
+                </div>
+              </div>
+              <div v-if="panel.lineup.sp?.player" class="player-card">
+                <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
+                <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
+                <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
+              </div>
+              <div v-else class="player-card">
+                <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
               </div>
             </div>
+
+            <!-- Bullpen -->
+            <div style="flex: 1; min-width: 0;">
+              <div class="section-label mb-2">Bullpen</div>
+              <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+              <div class="player-list">
+                <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="player-card">
+                  <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                  <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                  <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-        </div>
+          <div class="section-divider" />
 
-        <!-- Batting order cards (row 3) -->
-        <div v-for="(panel, i) in panels" :key="`bo-${i}`" class="surface-card border-round p-3">
+          <!-- Batting Order -->
           <div class="flex align-items-center justify-content-between mb-2">
             <span class="section-label">Batting Order</span>
             <span class="text-xs" :style="es[i].boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
@@ -286,10 +289,10 @@ const es = computed(() => [
                 @click="editors[i].saveBattingOrder()" />
             </div>
           </div>
-        </div>
 
-        <!-- Bench cards (row 4) -->
-        <div v-for="(panel, i) in panels" :key="`bench-${i}`" class="surface-card border-round p-3">
+          <div class="section-divider" />
+
+          <!-- Bench -->
           <div class="section-label mb-2">Bench</div>
           <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
           <div class="player-list">
@@ -299,8 +302,8 @@ const es = computed(() => [
               <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
             </div>
           </div>
-        </div>
 
+        </div>
 
       </div>
 
@@ -325,12 +328,17 @@ const es = computed(() => [
 </template>
 
 <style scoped>
-.sections-grid {
+.two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: 1.5rem;
-  row-gap: 0.75rem;
+  gap: 1.5rem;
   align-items: start;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--p-surface-200);
+  margin: 0.75rem -0.75rem;
 }
 
 /* ── Section labels ─────────────────────────────────── */
