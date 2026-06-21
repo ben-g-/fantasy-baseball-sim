@@ -59,8 +59,8 @@ async function selectSP(player: Player) {
     await patchSP(props.lineup.id, player.mlb_id)
     showSpDialog.value = false
     emit('updated')
-  } catch (e: any) {
-    spError.value = e.message ?? 'Failed to set SP'
+  } catch (e: unknown) {
+    spError.value = e instanceof Error ? e.message : 'Failed to set SP'
   } finally {
     spSaving.value = false
   }
@@ -126,8 +126,8 @@ async function saveBattingOrder() {
     await patchBattingOrder(props.lineup.id, payload)
     hasBoChanges.value = false
     emit('updated')
-  } catch (e: any) {
-    boError.value = e.message ?? 'Failed to save batting order'
+  } catch (e: unknown) {
+    boError.value = e instanceof Error ? e.message : 'Failed to save batting order'
   } finally {
     boSaving.value = false
   }

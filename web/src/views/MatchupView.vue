@@ -19,8 +19,8 @@ async function load() {
   errorMsg.value = ''
   try {
     matchup.value = await getMatchup(matchupId)
-  } catch (e: any) {
-    errorMsg.value = e.message ?? 'Failed to load matchup'
+  } catch (e: unknown) {
+    errorMsg.value = e instanceof Error ? e.message : 'Failed to load matchup'
   } finally {
     loading.value = false
   }

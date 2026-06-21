@@ -12,16 +12,25 @@ export const matchupsRouter = Router();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+interface PlayerRow {
+  mlb_id: number;
+  full_name: string;
+  last_name: string;
+  throws: string;
+  bats: string;
+  mlb_team: string;
+}
+
 async function fetchPlayerMaps(playerIds: number[]) {
-  if (!playerIds.length) return { players: {} as Record<number, any>, eligible: {} as Record<number, string[]>, display: {} as Record<number, string[]> };
+  if (!playerIds.length) return { players: {} as Record<number, PlayerRow>, eligible: {} as Record<number, string[]>, display: {} as Record<number, string[]> };
 
   const [playersRes, positionsRes] = await Promise.all([
     supabase.from('players').select('mlb_id, full_name, last_name, throws, bats, mlb_team').in('mlb_id', playerIds),
     supabase.from('player_positions').select('player_id, position, source').in('player_id', playerIds),
   ]);
 
-  const players: Record<number, any> = {};
-  for (const p of playersRes.data ?? []) players[p.mlb_id] = p;
+  const players: Record<number, PlayerRow> = {};
+  for (const p of playersRes.data ?? []) players[p.mlb_id] = p as PlayerRow;
 
   const eligible: Record<number, string[]> = {};
   const display: Record<number, string[]> = {};
@@ -35,7 +44,7 @@ async function fetchPlayerMaps(playerIds: number[]) {
 
 function enrichPlayer(
   mlbId: number,
-  players: Record<number, any>,
+  players: Record<number, PlayerRow>,
   eligible: Record<number, string[]>,
   display: Record<number, string[]>,
 ) {
@@ -64,7 +73,7 @@ function buildLineup(
   isHome: boolean,
   battingOrderRows: { lineup_id: string; batting_position: number; player_id: number; field_position: string }[],
   rosterPlayerIds: number[],
-  players: Record<number, any>,
+  players: Record<number, PlayerRow>,
   eligible: Record<number, string[]>,
   display: Record<number, string[]>,
   deadlines: ReturnType<typeof computeDeadlines>,

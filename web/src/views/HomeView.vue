@@ -78,7 +78,7 @@ onMounted(async () => {
         return {
           id: t.id,
           name: t.name,
-          league_name: (t.leagues as any)?.name ?? '',
+          league_name: (t.leagues as unknown as { name: string } | null)?.name ?? '',
           matchups,
         }
       }),
