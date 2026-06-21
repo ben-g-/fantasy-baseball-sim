@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { patchSP, patchBattingOrder, type Lineup, type Player, type Deadlines } from '../lib/api'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Dialog from 'primevue/dialog'
-import OrderList from 'primevue/orderlist'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 
 const props = defineProps<{
   lineup: Lineup
@@ -65,7 +66,7 @@ async function selectSP(player: Player) {
   }
 }
 
-// ── Batting order dialog ──────────────────────────────────────────────────────
+// ── Inline batting order editing ──────────────────────────────────────────────
 
 interface EditEntry {
   field_position: string
@@ -73,12 +74,34 @@ interface EditEntry {
   full_name: string
 }
 
-const showBoDialog = ref(false)
 const boItems = ref<EditEntry[]>([])
+const hasBoChanges = ref(false)
 const boSaving = ref(false)
 const boError = ref('')
 
-function openBoDialog() {
+watch(
+  () => props.lineup.batting_order,
+  (entries) => {
+    boItems.value = entries
+      .slice()
+      .sort((a, b) => a.batting_position - b.batting_position)
+      .map((e) => ({
+        field_position: e.field_position,
+        player_id: e.player?.mlb_id ?? 0,
+        full_name: e.player?.full_name ?? '—',
+      }))
+    hasBoChanges.value = false
+    boError.value = ''
+  },
+  { immediate: true },
+)
+
+function onRowReorder(event: { value: EditEntry[] }) {
+  boItems.value = event.value
+  hasBoChanges.value = true
+}
+
+function revertBattingOrder() {
   boItems.value = props.lineup.batting_order
     .slice()
     .sort((a, b) => a.batting_position - b.batting_position)
@@ -87,8 +110,8 @@ function openBoDialog() {
       player_id: e.player?.mlb_id ?? 0,
       full_name: e.player?.full_name ?? '—',
     }))
+  hasBoChanges.value = false
   boError.value = ''
-  showBoDialog.value = true
 }
 
 async function saveBattingOrder() {
@@ -101,7 +124,7 @@ async function saveBattingOrder() {
       field_position: item.field_position,
     }))
     await patchBattingOrder(props.lineup.id, payload)
-    showBoDialog.value = false
+    hasBoChanges.value = false
     emit('updated')
   } catch (e: any) {
     boError.value = e.message ?? 'Failed to save batting order'
@@ -114,6 +137,13 @@ async function saveBattingOrder() {
 
 function pitcherHand(p: Player | null): string {
   return p?.throws === 'L' ? 'LHP' : 'RHP'
+}
+
+function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string {
+  const s = entry.player?.vs_rhp
+  if (!s) return ''
+  const ab = s.pa - s.bb - s.hbp
+  return ab > 0 ? ((s.singles + s.doubles + s.triples + s.hr) / ab).toFixed(3) : ''
 }
 </script>
 
@@ -166,29 +196,49 @@ function pitcherHand(p: Player | null): string {
     <div class="surface-card border-round p-3 mb-3">
       <div class="flex align-items-center justify-content-between mb-2">
         <span class="font-semibold text-sm">Batting Order</span>
-        <div class="flex align-items-center gap-2">
-          <span
-            class="text-xs"
-            :style="boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'"
-          >
-            {{ deadlineText(deadlines.batting_order) }}
-          </span>
-          <Button
-            v-if="isMyTeam && !boLocked"
-            label="Edit"
-            size="small"
-            text
-            @click="openBoDialog"
-          />
-        </div>
+        <span
+          class="text-xs"
+          :style="boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'"
+        >
+          {{ deadlineText(deadlines.batting_order) }}
+        </span>
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+
+      <!-- Editable: drag-and-drop -->
+      <DataTable
+        v-if="isMyTeam && !boLocked"
+        :value="boItems"
+        :reorderable-rows="true"
+        size="small"
+        class="bo-editable"
+        @row-reorder="onRowReorder"
+      >
+        <Column row-reorder style="width: 2.5rem;" />
+        <Column style="width: 2rem;">
+          <template #body="{ index }">
+            <span style="color: var(--text-color-secondary); font-size: 0.875rem;">{{ index + 1 }}</span>
+          </template>
+        </Column>
+        <Column style="width: 3.5rem;">
+          <template #body="{ data }">
+            <span style="font-family: monospace; font-size: 0.75rem;">{{ data.field_position }}</span>
+          </template>
+        </Column>
+        <Column>
+          <template #body="{ data }">
+            <span style="font-size: 0.875rem;">{{ data.full_name }}</span>
+          </template>
+        </Column>
+      </DataTable>
+
+      <!-- Read-only: plain table -->
+      <table v-else style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
         <thead>
           <tr style="color: var(--text-color-secondary); font-size: 0.75rem;">
             <th style="text-align: left; padding: 0.25rem 0.5rem 0.25rem 0; width: 2rem;">#</th>
             <th style="text-align: left; padding: 0.25rem 0.5rem; width: 3rem;">Pos</th>
             <th style="text-align: left; padding: 0.25rem 0;">Player</th>
-            <th style="text-align: right; padding: 0.25rem 0; color: var(--text-color-secondary);">AVG</th>
+            <th style="text-align: right; padding: 0.25rem 0;">AVG</th>
           </tr>
         </thead>
         <tbody>
@@ -204,13 +254,30 @@ function pitcherHand(p: Player | null): string {
             </td>
             <td style="padding: 0.25rem 0;">{{ entry.player?.full_name ?? '—' }}</td>
             <td style="padding: 0.25rem 0; text-align: right; color: var(--text-color-secondary); font-size: 0.8rem;">
-              <template v-if="entry.player?.vs_rhp">
-                {{ ((entry.player.vs_rhp.singles + entry.player.vs_rhp.doubles + entry.player.vs_rhp.triples + entry.player.vs_rhp.hr) / (entry.player.vs_rhp.pa - entry.player.vs_rhp.bb - entry.player.vs_rhp.hbp)).toFixed(3) }}
-              </template>
+              {{ battingAvg(entry) }}
             </td>
           </tr>
         </tbody>
       </table>
+
+      <!-- Save / Revert bar -->
+      <div
+        v-if="isMyTeam && !boLocked && hasBoChanges"
+        class="flex align-items-center justify-content-between mt-3"
+      >
+        <span v-if="boError" class="text-sm" style="color: var(--red-500);">{{ boError }}</span>
+        <div class="flex gap-2 ml-auto">
+          <Button
+            label="Revert"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="boSaving"
+            @click="revertBattingOrder"
+          />
+          <Button label="Save order" size="small" :loading="boSaving" @click="saveBattingOrder" />
+        </div>
+      </div>
     </div>
 
     <!-- Bench -->
@@ -281,53 +348,29 @@ function pitcherHand(p: Player | null): string {
         </div>
       </div>
     </Dialog>
-
-    <!-- Batting order edit dialog -->
-    <Dialog
-      v-model:visible="showBoDialog"
-      header="Edit Batting Order"
-      :style="{ width: '400px' }"
-      modal
-    >
-      <p class="mt-0 mb-3 text-color-secondary text-sm">
-        Drag rows to reorder. Field positions move with each player.
-      </p>
-      <p v-if="boError" class="mt-0 text-sm" style="color: var(--red-500);">{{ boError }}</p>
-
-      <OrderList v-model="boItems" :pt="{ container: { style: 'height: auto; border: none; padding: 0' } }">
-        <template #item="{ item, index }">
-          <div class="flex align-items-center gap-3 py-1">
-            <span class="text-color-secondary text-sm" style="width: 1.5rem; text-align: right;">
-              {{ index + 1 }}
-            </span>
-            <span
-              style="
-                font-family: monospace;
-                font-size: 0.75rem;
-                min-width: 2.5rem;
-                text-align: center;
-                background: var(--surface-200);
-                border-radius: 4px;
-                padding: 2px 6px;
-              "
-            >
-              {{ item.field_position }}
-            </span>
-            <span class="text-sm">{{ item.full_name }}</span>
-          </div>
-        </template>
-      </OrderList>
-
-      <div class="flex justify-content-end gap-2 mt-4">
-        <Button
-          label="Cancel"
-          severity="secondary"
-          outlined
-          size="small"
-          @click="showBoDialog = false"
-        />
-        <Button label="Save" size="small" :loading="boSaving" @click="saveBattingOrder" />
-      </div>
-    </Dialog>
   </div>
 </template>
+
+<style scoped>
+/* Strip DataTable chrome so the editable list reads like the plain table */
+.bo-editable :deep(.p-datatable-table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+.bo-editable :deep(thead) {
+  display: none;
+}
+.bo-editable :deep(td) {
+  padding: 0.25rem 0.25rem;
+  border: none;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.bo-editable :deep(tr) {
+  border-bottom: none;
+}
+.bo-editable :deep(.p-datatable-reorderablerow-handle) {
+  cursor: grab;
+  color: var(--text-color-secondary);
+}
+</style>
