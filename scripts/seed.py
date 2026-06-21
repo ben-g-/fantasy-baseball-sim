@@ -204,41 +204,63 @@ def main() -> None:
             update['sim_status'] = 'sim_complete'
         client.table('matchups').update(update).eq('id', matchup['id']).execute()
 
-    # ── 8. Create lineups for both teams in all 4 special matchups ───────────
-    # States 2–4 get an SP set; state 1 gets an empty lineup row (SP deadline not yet passed).
+    # ── 8. Create lineups (with SP and batting order) for both teams in all 4 matchups ─
+    # Fetch all position eligibility for Alpha League rosters in one query.
+    l10_roster_pids = [r['player_id'] for r in roster_rows if r['league_id'] == l10_id]
+    pos_data = (client.table('player_positions').select('player_id, position')
+                .in_('player_id', l10_roster_pids).execute().data)
+    eligible: dict[int, set[str]] = {}
+    for row in pos_data:
+        eligible.setdefault(row['player_id'], set()).add(row['position'])
+
     def find_sp(team_id: str) -> int | None:
         pids = [r['player_id'] for r in roster_rows
                 if r['team_id'] == team_id and r['league_id'] == l10_id]
-        rows = (
-            client.table('player_positions')
-            .select('player_id')
-            .eq('position', 'P')
-            .in_('player_id', pids)
-            .limit(1)
-            .execute()
-            .data
-        )
-        return rows[0]['player_id'] if rows else None
+        return next((pid for pid in pids if 'P' in eligible.get(pid, set())), None)
+
+    def insert_lineup_with_batting_order(matchup_id: str, team_id: str, sp_id: int | None) -> None:
+        row: dict = {'matchup_id': matchup_id, 'team_id': team_id}
+        if sp_id:
+            row['sp_player_id'] = sp_id
+        lineup_id = client.table('lineups').insert(row).execute().data[0]['id']
+
+        roster_pids = [r['player_id'] for r in roster_rows
+                       if r['team_id'] == team_id and r['league_id'] == l10_id]
+        available = set(roster_pids) - ({sp_id} if sp_id else set())
+
+        # Greedy fill: assign most positionally restricted slots first.
+        # Conventional batting order: C 1B 2B 3B SS LF CF RF P
+        required = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF']
+        slot: dict[str, int] = {}
+        if sp_id:
+            slot['P'] = sp_id
+
+        for pos in sorted(required, key=lambda p: sum(1 for pid in available if p in eligible.get(pid, set()))):
+            candidates = [pid for pid in available if pos in eligible.get(pid, set())]
+            if not candidates:
+                candidates = sorted(available)  # fallback: positionally ineligible but fills the slot
+            chosen = candidates[0]
+            slot[pos] = chosen
+            available.discard(chosen)
+
+        batting_slots = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P']
+        order_rows = [
+            {'lineup_id': lineup_id, 'batting_position': i + 1,
+             'player_id': slot[pos], 'field_position': pos}
+            for i, pos in enumerate(batting_slots) if pos in slot
+        ]
+        if order_rows:
+            client.table('lineup_batting_order').insert(order_rows).execute()
 
     m1_sp_id = find_sp(m1_l10_tid)
     if not m1_sp_id:
-        print('  Warning: no pitcher found on manager 1 roster; SP not set for special matchups.')
+        print('  Warning: no pitcher found on manager 1 roster.')
 
-    for i, matchup in enumerate(m1_matchups):
-        sp_set = i >= 1  # states 2, 3, 4
+    for matchup in m1_matchups:
         opp_tid = (matchup['road_team_id'] if matchup['home_team_id'] == m1_l10_tid
                    else matchup['home_team_id'])
-        opp_sp_id = find_sp(opp_tid) if sp_set else None
-
-        m1_row: dict = {'matchup_id': matchup['id'], 'team_id': m1_l10_tid}
-        if sp_set and m1_sp_id:
-            m1_row['sp_player_id'] = m1_sp_id
-        client.table('lineups').insert(m1_row).execute()
-
-        opp_row: dict = {'matchup_id': matchup['id'], 'team_id': opp_tid}
-        if sp_set and opp_sp_id:
-            opp_row['sp_player_id'] = opp_sp_id
-        client.table('lineups').insert(opp_row).execute()
+        insert_lineup_with_batting_order(matchup['id'], m1_l10_tid, m1_sp_id)
+        insert_lineup_with_batting_order(matchup['id'], opp_tid, find_sp(opp_tid))
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print('Done.')
@@ -247,7 +269,7 @@ def main() -> None:
     print(f'  Teams created: {len(l10_teams) + len(l12_teams)}')
     print(f'  Roster players inserted: {len(roster_rows)}')
     print(f'  Matchups created: {len(l10_matchups) + len(l12_matchups)}')
-    print(f'  Lineups created: 8 (both teams × 4 special matchups)')
+    print(f'  Lineups created: 8 (both teams × 4 special matchups), each with a batting order')
 
 
 if __name__ == '__main__':
