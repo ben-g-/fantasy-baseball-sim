@@ -4,8 +4,6 @@ import { patchSP, patchBattingOrder, type Lineup, type Player, type Deadlines } 
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Dialog from 'primevue/dialog'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
 
 const props = defineProps<{
   lineup: Lineup
@@ -66,15 +64,15 @@ async function selectSP(player: Player) {
   }
 }
 
-// ── Inline batting order editing ──────────────────────────────────────────────
+// ── Batting order editing ─────────────────────────────────────────────────────
 
-interface EditEntry {
+interface DisplayEntry {
   field_position: string
   player_id: number
   full_name: string
 }
 
-const boItems = ref<EditEntry[]>([])
+const boItems = ref<DisplayEntry[]>([])
 const hasBoChanges = ref(false)
 const boSaving = ref(false)
 const boError = ref('')
@@ -96,9 +94,49 @@ watch(
   { immediate: true },
 )
 
-function onRowReorder(event: { value: EditEntry[] }) {
-  boItems.value = event.value
+// Unified display list — editable uses boItems, read-only converts from lineup prop
+const boDisplayItems = computed<DisplayEntry[]>(() => {
+  if (props.isMyTeam && !boLocked.value) return boItems.value
+  return props.lineup.batting_order
+    .slice()
+    .sort((a, b) => a.batting_position - b.batting_position)
+    .map((e) => ({
+      field_position: e.field_position,
+      player_id: e.player?.mlb_id ?? 0,
+      full_name: e.player?.full_name ?? '—',
+    }))
+})
+
+// HTML5 drag-and-drop for the editable column
+const dragIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+
+function onDragStart(index: number) {
+  dragIndex.value = index
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
+
+function onDragOver(index: number) {
+  dragOverIndex.value = index
+}
+
+function onDrop(targetIndex: number) {
+  if (dragIndex.value === null || dragIndex.value === targetIndex) {
+    dragIndex.value = null
+    dragOverIndex.value = null
+    return
+  }
+  const items = [...boItems.value]
+  const [moved] = items.splice(dragIndex.value, 1)
+  items.splice(targetIndex, 0, moved)
+  boItems.value = items
   hasBoChanges.value = true
+  dragIndex.value = null
+  dragOverIndex.value = null
 }
 
 function revertBattingOrder() {
@@ -137,13 +175,6 @@ async function saveBattingOrder() {
 
 function pitcherHand(p: Player | null): string {
   return p?.throws === 'L' ? 'LHP' : 'RHP'
-}
-
-function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string {
-  const s = entry.player?.vs_rhp
-  if (!s) return ''
-  const ab = s.pa - s.bb - s.hbp
-  return ab > 0 ? ((s.singles + s.doubles + s.triples + s.hr) / ab).toFixed(3) : ''
 }
 </script>
 
@@ -204,61 +235,24 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
         </span>
       </div>
 
-      <!-- Editable: drag-and-drop -->
-      <DataTable
-        v-if="isMyTeam && !boLocked"
-        :value="boItems"
-        :reorderable-rows="true"
-        size="small"
-        class="bo-editable"
-        @row-reorder="onRowReorder"
-      >
-        <Column row-reorder style="width: 2.5rem;" />
-        <Column style="width: 2rem;">
-          <template #body="{ index }">
-            <span style="color: var(--text-color-secondary); font-size: 0.875rem;">{{ index + 1 }}</span>
-          </template>
-        </Column>
-        <Column style="width: 3.5rem;">
-          <template #body="{ data }">
-            <span style="font-family: monospace; font-size: 0.75rem;">{{ data.field_position }}</span>
-          </template>
-        </Column>
-        <Column>
-          <template #body="{ data }">
-            <span style="font-size: 0.875rem;">{{ data.full_name }}</span>
-          </template>
-        </Column>
-      </DataTable>
-
-      <!-- Read-only: plain table -->
-      <table v-else style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
-        <thead>
-          <tr style="color: var(--text-color-secondary); font-size: 0.75rem;">
-            <th style="text-align: left; padding: 0.25rem 0.5rem 0.25rem 0; width: 2rem;">#</th>
-            <th style="text-align: left; padding: 0.25rem 0.5rem; width: 3rem;">Pos</th>
-            <th style="text-align: left; padding: 0.25rem 0;">Player</th>
-            <th style="text-align: right; padding: 0.25rem 0;">AVG</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="entry in lineup.batting_order.slice().sort((a, b) => a.batting_position - b.batting_position)"
-            :key="entry.batting_position"
-          >
-            <td style="padding: 0.25rem 0.5rem 0.25rem 0; color: var(--text-color-secondary);">
-              {{ entry.batting_position }}
-            </td>
-            <td style="padding: 0.25rem 0.5rem; font-family: monospace; font-size: 0.75rem;">
-              {{ entry.field_position }}
-            </td>
-            <td style="padding: 0.25rem 0;">{{ entry.player?.full_name ?? '—' }}</td>
-            <td style="padding: 0.25rem 0; text-align: right; color: var(--text-color-secondary); font-size: 0.8rem;">
-              {{ battingAvg(entry) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="bo-list">
+        <div
+          v-for="(item, index) in boDisplayItems"
+          :key="item.player_id"
+          class="bo-row"
+          :class="{ 'bo-drag-over': dragOverIndex === index && dragIndex !== index }"
+          :draggable="isMyTeam && !boLocked"
+          @dragstart="isMyTeam && !boLocked ? onDragStart(index) : undefined"
+          @dragend="onDragEnd"
+          @dragover.prevent="isMyTeam && !boLocked ? onDragOver(index) : undefined"
+          @drop.prevent="isMyTeam && !boLocked ? onDrop(index) : undefined"
+        >
+          <span class="bo-grip" :style="isMyTeam && !boLocked ? '' : 'visibility: hidden'">⠿</span>
+          <span class="bo-num">{{ index + 1 }}</span>
+          <span class="bo-name">{{ item.full_name }}</span>
+          <span class="bo-pos">{{ item.field_position }}</span>
+        </div>
+      </div>
 
       <!-- Save / Revert bar -->
       <div
@@ -290,7 +284,7 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
         v-for="(b, i) in lineup.bench"
         :key="i"
         class="flex align-items-center justify-content-between py-1"
-        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--surface-border);' : ''}`"
+        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
       >
         <span>{{ b.player?.full_name ?? '—' }}</span>
         <span class="text-color-secondary" style="font-size: 0.75rem;">
@@ -309,7 +303,7 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
         v-for="(b, i) in lineup.bullpen"
         :key="i"
         class="flex align-items-center justify-content-between py-1"
-        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--surface-border);' : ''}`"
+        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
       >
         <span>{{ b.player?.full_name ?? '—' }}</span>
         <span class="text-color-secondary" style="font-size: 0.75rem;">
@@ -352,25 +346,66 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
 </template>
 
 <style scoped>
-/* Strip DataTable chrome so the editable list reads like the plain table */
-.bo-editable :deep(.p-datatable-table) {
-  width: 100%;
-  border-collapse: collapse;
+.bo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
-.bo-editable :deep(thead) {
-  display: none;
+
+.bo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.625rem;
+  background: var(--p-surface-50);
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: border-color 0.1s;
 }
-.bo-editable :deep(td) {
-  padding: 0.25rem 0.25rem;
-  border: none;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.bo-editable :deep(tr) {
-  border-bottom: none;
-}
-.bo-editable :deep(.p-datatable-reorderablerow-handle) {
+
+.bo-row[draggable='true'] {
   cursor: grab;
-  color: var(--text-color-secondary);
+}
+
+.bo-row[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.bo-drag-over {
+  border-color: var(--p-primary-color, #6366f1) !important;
+}
+
+.bo-grip {
+  width: 1rem;
+  text-align: center;
+  color: var(--p-surface-400);
+  font-size: 1rem;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.bo-num {
+  width: 1.1rem;
+  text-align: right;
+  color: var(--p-surface-400);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.bo-name {
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.bo-pos {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 4px;
+  color: var(--p-surface-600);
+  background: #ffffff;
+  font-family: monospace;
+  flex-shrink: 0;
 }
 </style>
