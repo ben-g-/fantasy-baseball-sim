@@ -369,8 +369,16 @@ $$;
 
 
 -- ============================================================
--- Read Policies (Realtime-enabled tables only)
+-- Read Policies
 -- ============================================================
+
+CREATE POLICY "league members can read leagues"
+  ON leagues FOR SELECT
+  USING (is_league_member(id));
+
+CREATE POLICY "league members can read teams"
+  ON teams FOR SELECT
+  USING (is_league_member(league_id));
 
 CREATE POLICY "league members can read matchups"
   ON matchups FOR SELECT
@@ -433,7 +441,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 -- authenticated role needs SELECT on the three Realtime-enabled tables so
 -- that Supabase Realtime subscriptions work. RLS policies then control
 -- which rows each user can see.
-GRANT SELECT ON matchups, lineups, lineup_batting_order TO authenticated;
+GRANT SELECT ON leagues, teams, matchups, lineups, lineup_batting_order TO authenticated;
 
 
 -- ============================================================
