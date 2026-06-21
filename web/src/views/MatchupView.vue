@@ -205,16 +205,11 @@ const es = computed(() => [
           <div class="surface-card border-round p-3" style="flex: 1; min-width: 0;">
             <div class="section-label mb-2">Bullpen</div>
             <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-            <div
-              v-for="(b, bi) in panel.lineup.bullpen"
-              :key="bi"
-              class="flex align-items-center justify-content-between py-1"
-              :style="`font-size: 0.875rem;${bi > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
-            >
-              <span>{{ b.player?.full_name ?? '—' }}</span>
-              <span class="text-color-secondary" style="font-size: 0.75rem; white-space: nowrap; margin-left: 0.5rem;">
-                {{ editors[i].pitcherHand(b.player) }}
-              </span>
+            <div class="bo-list">
+              <div v-for="(b, bi) in panel.lineup.bullpen" :key="bi" class="sp-subcard">
+                <span class="sp-name">{{ b.player?.full_name ?? '—' }}</span>
+                <span class="sp-stats">{{ editors[i].pitcherHand(b.player) }}</span>
+              </div>
             </div>
           </div>
 
@@ -274,14 +269,11 @@ const es = computed(() => [
         <div v-for="(panel, i) in panels" :key="`bench-${i}`" class="surface-card border-round p-3">
           <div class="section-label mb-2">Bench</div>
           <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-          <div
-            v-for="(b, bi) in panel.lineup.bench"
-            :key="bi"
-            class="flex align-items-center justify-content-between py-1"
-            :style="`font-size: 0.875rem;${bi > 0 ? ' border-top: 1px solid var(--p-surface-200);' : ''}`"
-          >
-            <span>{{ b.player?.full_name ?? '—' }}</span>
-            <span class="text-color-secondary" style="font-size: 0.75rem;">{{ b.player?.display_positions.join(' / ') }}</span>
+          <div class="bo-list">
+            <div v-for="(b, bi) in panel.lineup.bench" :key="bi" class="sp-subcard">
+              <span class="sp-name">{{ b.player?.full_name ?? '—' }}</span>
+              <span class="sp-stats">{{ b.player?.display_positions.join(' · ') }}</span>
+            </div>
           </div>
         </div>
 
@@ -295,15 +287,13 @@ const es = computed(() => [
         <div
           v-for="player in left.spCandidates.value"
           :key="player.mlb_id"
-          class="border-round p-3 mb-1 surface-hover"
+          class="sp-subcard mb-1"
           style="cursor: pointer;"
           @click="!left.spSaving.value && left.selectSP(player)"
         >
-          <div class="font-medium">{{ player.full_name }}</div>
-          <div class="text-color-secondary text-sm">
-            {{ player.mlb_team }} · {{ left.pitcherHand(player) }}
-            <template v-if="player.obp_allowed != null">· OBP {{ player.obp_allowed.toFixed(3) }} / SLG {{ player.slg_allowed?.toFixed(3) }}</template>
-          </div>
+          <span class="sp-name">{{ player.full_name }}</span>
+          <span class="sp-stats">{{ player.mlb_team }} · {{ left.pitcherHand(player) }}</span>
+          <span v-if="player.obp_allowed != null" class="sp-stats">OBP {{ player.obp_allowed.toFixed(3) }} / SLG {{ player.slg_allowed?.toFixed(3) }}</span>
         </div>
       </Dialog>
     </template>
