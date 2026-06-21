@@ -28,6 +28,15 @@ async function load() {
 
 onMounted(load)
 
+const title = computed(() => {
+  if (!matchup.value) return ''
+  const m = matchup.value
+  const isMyTeamHome = m.my_team_id === m.home_team?.id
+  const myName = isMyTeamHome ? m.home_team?.name : m.road_team?.name
+  const oppName = isMyTeamHome ? m.road_team?.name : m.home_team?.name
+  return `${myName ?? '—'} vs. ${oppName ?? '—'}`
+})
+
 const panels = computed(() => {
   if (!matchup.value) return []
   const m = matchup.value
@@ -121,9 +130,7 @@ function statusLabel(status: string) {
         style="flex-wrap: wrap;"
       >
         <div>
-          <h1 class="m-0 text-2xl font-bold">
-            {{ matchup.home_team?.name }} vs. {{ matchup.road_team?.name }}
-          </h1>
+          <h1 class="m-0 text-2xl font-bold">{{ title }}</h1>
           <p class="mt-1 mb-0 text-color-secondary text-sm">
             Week {{ matchup.week_number }} · {{ formatSimDate(matchup.sim_scheduled_at) }}
           </p>

@@ -290,7 +290,7 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
         v-for="(b, i) in lineup.bench"
         :key="i"
         class="flex align-items-center justify-content-between py-1"
-        style="font-size: 0.875rem; border-bottom: 1px solid var(--surface-border);"
+        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--surface-border);' : ''}`"
       >
         <span>{{ b.player?.full_name ?? '—' }}</span>
         <span class="text-color-secondary" style="font-size: 0.75rem;">
@@ -309,7 +309,7 @@ function battingAvg(entry: (typeof props.lineup.batting_order)[number]): string 
         v-for="(b, i) in lineup.bullpen"
         :key="i"
         class="flex align-items-center justify-content-between py-1"
-        style="font-size: 0.875rem; border-bottom: 1px solid var(--surface-border);"
+        :style="`font-size: 0.875rem;${i > 0 ? ' border-top: 1px solid var(--surface-border);' : ''}`"
       >
         <span>{{ b.player?.full_name ?? '—' }}</span>
         <span class="text-color-secondary" style="font-size: 0.75rem;">

@@ -18,6 +18,7 @@ interface TeamRow {
 const teams = ref<TeamRow[]>([])
 const loading = ref(true)
 const errorMsg = ref('')
+const showAllMap = ref<Record<string, boolean>>({})
 
 async function signOut() {
   await supabase.auth.signOut()
@@ -46,6 +47,15 @@ function statusLabel(status: string) {
   if (status === 'sim_complete') return 'Final'
   if (status === 'sim_error') return 'Error'
   return status
+}
+
+const PREVIEW_COUNT = 3
+
+function visibleMatchups(team: TeamRow): MatchupSummary[] {
+  if (showAllMap.value[team.id]) return team.matchups
+  // show the next PREVIEW_COUNT upcoming matchups (or last PREVIEW_COUNT if none upcoming)
+  const upcoming = team.matchups.filter((m) => m.sim_status === 'scheduled' || m.sim_status === 'sim_pending')
+  return upcoming.length ? upcoming.slice(0, PREVIEW_COUNT) : team.matchups.slice(-PREVIEW_COUNT)
 }
 
 function matchupLabel(m: MatchupSummary, myTeamId: string) {
@@ -114,7 +124,7 @@ onMounted(async () => {
       </div>
 
       <div
-        v-for="m in team.matchups"
+        v-for="m in visibleMatchups(team)"
         :key="m.id"
         class="surface-card border-round p-3 mb-2 flex align-items-center justify-content-between"
         style="cursor: pointer;"
@@ -133,6 +143,15 @@ onMounted(async () => {
           />
         </div>
       </div>
+
+      <button
+        v-if="team.matchups.length > PREVIEW_COUNT"
+        class="p-0 mt-1 text-sm"
+        style="background: none; border: none; cursor: pointer; color: var(--primary-color);"
+        @click="showAllMap[team.id] = !showAllMap[team.id]"
+      >
+        {{ showAllMap[team.id] ? 'Show fewer' : `Show all ${team.matchups.length} weeks` }}
+      </button>
     </div>
   </div>
 </template>
