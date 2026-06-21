@@ -174,7 +174,7 @@ const es = computed(() => [
         <!-- SP cards (row 2) -->
         <div v-for="(panel, i) in panels" :key="`sp-${i}`" class="surface-card border-round p-3">
           <div class="flex align-items-center justify-content-between mb-2">
-            <span class="font-semibold text-sm">Starting Pitcher</span>
+            <span class="section-label">Starting Pitcher</span>
             <div class="flex align-items-center gap-2">
               <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
                 {{ deadlineText(es[i].spDeadlineIso) }}
@@ -203,7 +203,7 @@ const es = computed(() => [
         <!-- Batting order cards (row 3) -->
         <div v-for="(panel, i) in panels" :key="`bo-${i}`" class="surface-card border-round p-3">
           <div class="flex align-items-center justify-content-between mb-2">
-            <span class="font-semibold text-sm">Batting Order</span>
+            <span class="section-label">Batting Order</span>
             <span class="text-xs" :style="es[i].boLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
               {{ deadlineText(matchup.deadlines.batting_order) }}
             </span>
@@ -252,7 +252,7 @@ const es = computed(() => [
 
         <!-- Bench cards (row 4) -->
         <div v-for="(panel, i) in panels" :key="`bench-${i}`" class="surface-card border-round p-3">
-          <div class="font-semibold text-sm mb-2">Bench</div>
+          <div class="section-label mb-2">Bench</div>
           <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
           <div
             v-for="(b, bi) in panel.lineup.bench"
@@ -267,7 +267,7 @@ const es = computed(() => [
 
         <!-- Bullpen cards (row 5) -->
         <div v-for="(panel, i) in panels" :key="`bullpen-${i}`" class="surface-card border-round p-3">
-          <div class="font-semibold text-sm mb-2">Bullpen</div>
+          <div class="section-label mb-2">Bullpen</div>
           <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
           <div
             v-for="(b, bi) in panel.lineup.bullpen"
@@ -314,6 +314,15 @@ const es = computed(() => [
   column-gap: 1.5rem;
   row-gap: 0.75rem;
   align-items: start;
+}
+
+/* ── Section labels ─────────────────────────────────── */
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--p-surface-400);
 }
 
 /* ── SP subcard ─────────────────────────────────────── */
