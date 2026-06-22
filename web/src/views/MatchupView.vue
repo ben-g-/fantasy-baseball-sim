@@ -260,13 +260,13 @@ const es = computed(() => [
                 <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
                 <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
               </div>
-              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</span>
+              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">or choose a different pitcher ↓</span>
             </div>
             <div v-else class="player-card">
               <div class="sp-info">
                 <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
               </div>
-              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</span>
+              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">or choose a different pitcher ↓</span>
             </div>
           </div>
 
