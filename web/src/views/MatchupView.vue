@@ -90,10 +90,13 @@ function statusLabel(status: string) {
 }
 
 // ── Sorting helpers ──────────────────────────────────────────────────────────
-function sortedByLastName<T extends { player: { last_name: string } | null }>(items: T[]): T[] {
-  return [...items].sort((a, b) =>
-    (a.player?.last_name ?? '').localeCompare(b.player?.last_name ?? '', 'en', { sensitivity: 'base' }),
-  )
+function sortedByLastName<T extends { player: { last_name: string; full_name: string } | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const opts: Intl.CollatorOptions = { sensitivity: 'base' }
+    const last = (a.player?.last_name ?? '').localeCompare(b.player?.last_name ?? '', 'en', opts)
+    if (last !== 0) return last
+    return (a.player?.full_name ?? '').localeCompare(b.player?.full_name ?? '', 'en', opts)
+  })
 }
 
 // ── Player display helpers ───────────────────────────────────────────────────
