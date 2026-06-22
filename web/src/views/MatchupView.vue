@@ -209,7 +209,7 @@ const es = computed(() => [
           </div>
 
           <!-- Section 2: Starting Pitcher -->
-          <div class="tc-section">
+          <div class="tc-section tc-sp">
             <div class="sp-header mb-2">
               <span class="section-label">Starting Pitcher</span>
               <div class="flex align-items-center gap-1">
@@ -236,7 +236,7 @@ const es = computed(() => [
           </div>
 
           <!-- Section 3: Bullpen -->
-          <div class="tc-section">
+          <div class="tc-section tc-sm">
             <div class="section-label mb-2">Bullpen</div>
             <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
@@ -300,7 +300,7 @@ const es = computed(() => [
           </div>
 
           <!-- Section 5: Bench -->
-          <div class="tc-section">
+          <div class="tc-section tc-sm">
             <div class="section-label mb-2">Bench</div>
             <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
@@ -398,7 +398,7 @@ const es = computed(() => [
 }
 
 .player-name {
-  font-size: 0.875rem;
+  font-size: 0.875rem; /* batting order baseline */
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -406,9 +406,15 @@ const es = computed(() => [
 }
 
 .player-detail {
-  font-size: 0.7rem;
+  font-size: 0.7rem; /* batting order baseline */
   color: var(--p-surface-500);
 }
+
+.tc-sp .player-name  { font-size: 1.05rem; }
+.tc-sp .player-detail { font-size: 0.75rem; }
+
+.tc-sm .player-name  { font-size: 0.75rem; }
+.tc-sm .player-detail { font-size: 0.65rem; }
 
 /* ── Player list (bullpen, bench) ───────────────────── */
 .player-list {
