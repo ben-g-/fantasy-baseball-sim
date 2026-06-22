@@ -332,7 +332,6 @@ export function useLineupPanel(
       }))
       await patchBattingOrder(lineupRef.value.id, payload)
       hasBoChanges.value = false
-      onUpdated()
     } catch (e: unknown) {
       boError.value = e instanceof Error ? e.message : 'Failed to save batting order'
     } finally {
