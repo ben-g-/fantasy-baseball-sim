@@ -88,6 +88,21 @@ function statusLabel(status: string) {
   return status
 }
 
+// ── Tooltip helpers ──────────────────────────────────────────────────────────
+// TODO: disabled case should read "Started Week X — unavailable" once recent-start
+// history is available in the composable.
+function startTooltip(
+  player: Player | null | undefined,
+  candidateIds: Set<number>,
+  currentSpName: string | undefined,
+): string {
+  if (!player) return ''
+  if (candidateIds.has(player.mlb_id)) {
+    return `Start ${player.full_name} instead of ${currentSpName ?? 'current SP'}`
+  }
+  return 'Not eligible to start'
+}
+
 // ── Sorting helpers ──────────────────────────────────────────────────────────
 function sortedByLastName<T extends { player: { last_name: string; full_name: string } | null }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -241,6 +256,7 @@ const es = computed(() => [
             <div v-else class="player-card">
               <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
             </div>
+            <p v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</p>
           </div>
 
           <!-- Section 3: Bullpen -->
@@ -254,15 +270,20 @@ const es = computed(() => [
                   <span class="player-detail">{{ playerDetail(b.player) }}</span>
                   <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
                 </div>
-                <Button
+                <span
                   v-if="panel.isMyTeam && !es[i].spLocked"
-                  label="Start"
-                  size="small"
-                  outlined
-                  severity="warn"
-                  :disabled="!b.player || !es[i].spCandidateIds.has(b.player.mlb_id) || es[i].spSaving"
-                  @click="b.player && editors[i].selectSP(b.player)"
-                />
+                  v-tooltip.top="startTooltip(b.player, es[i].spCandidateIds, panel.lineup.sp?.player?.full_name)"
+                  style="display: inline-block;"
+                >
+                  <Button
+                    label="Start"
+                    size="small"
+                    outlined
+                    severity="warn"
+                    :disabled="!b.player || !es[i].spCandidateIds.has(b.player.mlb_id) || es[i].spSaving"
+                    @click="b.player && editors[i].selectSP(b.player)"
+                  />
+                </span>
               </div>
             </div>
           </div>
@@ -395,6 +416,13 @@ const es = computed(() => [
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--p-surface-400);
+}
+
+.sp-change-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  color: var(--p-surface-400);
+  font-style: italic;
 }
 
 .sp-header {

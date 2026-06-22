@@ -11,6 +11,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.p-tooltip .p-tooltip-text {
+  font-size: 0.7rem;
+}
+
 .surface-card {
   background-color: #ffffff !important;
   border: 1px solid var(--p-surface-200);
