@@ -175,6 +175,14 @@ export function useLineupPanel(
     const items = boItems.value
     const result: string[][] = items.map(() => [])
 
+    const FIELDING_POSITIONS = ['C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF']
+    const assignedSet = new Set(items.map((item) => item.field_position))
+    const hasP = assignedSet.has('P')
+    const expected = [...FIELDING_POSITIONS, hasP ? 'P' : 'DH']
+    const missing = expected.filter((p) => !assignedSet.has(p))
+    const missingSuffix = missing.map((p) => `missing ${p}`).join(', ')
+    const withMissing = (msg: string) => (missingSuffix ? `${msg}, ${missingSuffix}` : msg)
+
     const posIndices = new Map<string, number[]>()
     items.forEach((item, idx) => {
       if (item.field_position && item.field_position !== 'P') {
@@ -184,7 +192,7 @@ export function useLineupPanel(
       }
     })
     posIndices.forEach((indices, pos) => {
-      if (indices.length > 1) indices.forEach((idx) => result[idx].push(`Duplicate ${pos}`))
+      if (indices.length > 1) indices.forEach((idx) => result[idx].push(withMissing(`Duplicate ${pos}`)))
     })
 
     items.forEach((item, idx) => {
@@ -194,16 +202,15 @@ export function useLineupPanel(
         item.eligible_positions.length > 0 &&
         !item.eligible_positions.includes(item.field_position)
       ) {
-        result[idx].push(`${item.full_name} cannot play ${item.field_position}`)
+        result[idx].push(withMissing(`${item.full_name} cannot play ${item.field_position}`))
       }
     })
 
     // P and DH cannot coexist
-    const hasP = items.some((item) => item.field_position === 'P')
-    if (hasP) {
+    if (hasP && assignedSet.has('DH')) {
       items.forEach((item, idx) => {
         if (item.field_position === 'DH') {
-          result[idx].push('A DH cannot be used when the pitcher is batting for himself')
+          result[idx].push(withMissing('A DH cannot be used when the pitcher is batting for himself'))
         }
       })
     }
