@@ -188,10 +188,13 @@ Returns all matchups for the team's current season, ordered by week. Used to pop
     "sim_status": "scheduled",
     "home_team": { "id": "uuid", "name": "string" },
     "road_team": { "id": "uuid", "name": "string" },
-    "final_score": null
+    "final_score": null,
+    "has_lineup": true
   }
 ]
 ```
+
+`has_lineup` is `true` when both teams have a lineup record for this matchup (i.e. the matchup detail page is navigable). Cards where `has_lineup` is `false` are non-clickable on the home screen.
 
 ---
 
