@@ -331,6 +331,7 @@ const es = computed(() => [
                 </div>
                 <button
                   v-if="panel.isMyTeam && !es[i].boLocked && item.field_position === 'DH' && panel.lineup.sp?.player && !es[i].spInOrder"
+                  v-tooltip.top="`${item.full_name} is batting for the pitcher. To have ${panel.lineup.sp.player.full_name} bat for himself instead, click here.`"
                   class="use-sp-btn"
                   @click.stop="editors[i].useSpInstead(idx)"
                 >Use SP instead</button>
