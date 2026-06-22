@@ -181,7 +181,6 @@ export function useLineupPanel(
     const expected = [...FIELDING_POSITIONS, hasP ? 'P' : 'DH']
     const missing = expected.filter((p) => !assignedSet.has(p))
     const missingSuffix = missing.map((p) => `missing ${p}`).join(', ')
-    const withMissing = (msg: string) => (missingSuffix ? `${msg}, ${missingSuffix}` : msg)
 
     const posIndices = new Map<string, number[]>()
     items.forEach((item, idx) => {
@@ -192,7 +191,7 @@ export function useLineupPanel(
       }
     })
     posIndices.forEach((indices, pos) => {
-      if (indices.length > 1) indices.forEach((idx) => result[idx].push(withMissing(`Duplicate ${pos}`)))
+      if (indices.length > 1) indices.forEach((idx) => result[idx].push(`Duplicate ${pos}`))
     })
 
     items.forEach((item, idx) => {
@@ -202,7 +201,7 @@ export function useLineupPanel(
         item.eligible_positions.length > 0 &&
         !item.eligible_positions.includes(item.field_position)
       ) {
-        result[idx].push(withMissing(`${item.full_name} cannot play ${item.field_position}`))
+        result[idx].push(`${item.full_name} cannot play ${item.field_position}`)
       }
     })
 
@@ -210,8 +209,15 @@ export function useLineupPanel(
     if (hasP && assignedSet.has('DH')) {
       items.forEach((item, idx) => {
         if (item.field_position === 'DH') {
-          result[idx].push(withMissing('A DH cannot be used when the pitcher is batting for himself'))
+          result[idx].push('A DH cannot be used when the pitcher is batting for himself')
         }
+      })
+    }
+
+    // Append missing positions once as a separate · -separated entry on each conflicted slot
+    if (missingSuffix) {
+      result.forEach((slotConflicts) => {
+        if (slotConflicts.length > 0) slotConflicts.push(missingSuffix)
       })
     }
 
