@@ -111,7 +111,7 @@ The central screen for this scenario. The manager reaches this by clicking their
 The opponent's column is always read-only, reflecting whatever state they are in.
 
 **Editing interactions (own column only, pre-deadline):**
-- Click SP slot → opens SP Selection panel
+- Click "Start" on a bullpen pitcher → immediately sets that pitcher as the SP; button is disabled for ineligible pitchers (started in either of the two preceding weeks) and hidden after the SP deadline
 - Drag a player to reorder batting slots
 - Drag a bench player into a batting slot → places him there; if his eligible positions don't include the slot's current field position, the slot retains the previous field position (now invalid), highlighted for the manager to resolve
 - Drag a bench player onto the SP's Pitcher batting slot → bench player becomes DH, SP exits the batting order (SP is not shown on the bench)
@@ -145,19 +145,6 @@ The Matchup Screen transforms after the sim runs to display results. The lineup 
 
 ---
 
-### Screen 2: SP Selection
-
-Accessed by clicking the SP slot in the manager's own column (only before the SP deadline).
-
-**Layout:**
-- Modal or slide-up panel
-- Lists all Pitcher-eligible players on the manager's roster
-- Each player card shows: name, key stats (OBP allowed, SLG allowed), handedness (L/R)
-- Ineligible players (started in either of the two preceding weeks) are shown but greyed out with a label such as "Started Week 9 — unavailable"
-- The currently selected (default) SP is highlighted
-- Clicking an eligible player selects them and returns to the Matchup Screen
-
----
 
 ## User Flow (Step by Step)
 
@@ -166,34 +153,31 @@ Accessed by clicking the SP slot in the manager's own column (only before the SP
 1. Manager opens app → clicks current matchup on home screen → lands on **Matchup Screen (pre-sim mode)**
 2. Matchup Screen shows both lineups pre-populated with defaults; own SP slot shows the default SP (unlocked); countdown to SP deadline visible
 3. Manager reviews the default SP and decides to change it
-4. Manager clicks own SP slot → **SP Selection panel** opens
-5. Manager sees all Pitcher-eligible players; ineligible ones are greyed out; the current default is highlighted
-6. Manager clicks a different eligible player to select them
-7. Returns to Matchup Screen — own SP slot now shows the newly selected pitcher (unlocked)
-8. Manager can return and change their SP at any time before the deadline
-9. **[Road team SP deadline passes]** — road team's SP slot locks
-10. **[Home team SP deadline passes]** — home team's SP slot locks; both SP slots now show locked state
+4. Manager clicks "Start" on a different pitcher in the Bullpen section — that pitcher is immediately set as the SP; ineligible pitchers show a disabled button
+5. Manager can change their SP at any time before the deadline by clicking "Start" on a different bullpen pitcher
+6. **[Road team SP deadline passes]** — road team's SP slot locks; Start buttons disappear from road team's bullpen
+7. **[Home team SP deadline passes]** — home team's SP slot locks; both SP slots now show locked state
 
 ### Phase 2: Batting Order & Field Position Editing
 
-11. Manager opens app → Matchup Screen shows both SP slots locked; batting order slots show defaults (unlocked); opponent's SP visible with lock status; countdown to batting order deadline visible
-12. Manager reviews the default batting order and decides to make changes
-13. Manager drags a batter lower in the order and promotes another player with better matchup splits; lineup remains valid; changes auto-save
-14. Manager clicks a batting slot to adjust a field position; inline picker shows eligible positions for that player
-15. Manager makes a position change that temporarily creates a conflict (two SS, no 3B); the conflicting slots are highlighted and the unsaved changes indicator appears
-16. Manager hovers over a highlighted slot to read the tooltip ("Two SS — no 3B"), then resolves the conflict by changing the other SS's position to 3B
-17. Lineup becomes valid; auto-saves; unsaved changes indicator clears
-18. Manager can continue adjusting until the batting order deadline
-19. **[Batting order deadline passes]** — both teams' batting orders lock; Matchup Screen enters a waiting state showing all slots locked and countdown to sim run time
+8. Manager opens app → Matchup Screen shows both SP slots locked; batting order slots show defaults (unlocked); opponent's SP visible with lock status; countdown to batting order deadline visible
+9. Manager reviews the default batting order and decides to make changes
+10. Manager drags a batter lower in the order and promotes another player with better matchup splits; lineup remains valid; changes auto-save
+11. Manager clicks a batting slot to adjust a field position; inline picker shows eligible positions for that player
+12. Manager makes a position change that temporarily creates a conflict (two SS, no 3B); the conflicting slots are highlighted and the unsaved changes indicator appears
+13. Manager hovers over a highlighted slot to read the tooltip ("Two SS — no 3B"), then resolves the conflict by changing the other SS's position to 3B
+14. Lineup becomes valid; auto-saves; unsaved changes indicator clears
+15. Manager can continue adjusting until the batting order deadline
+16. **[Batting order deadline passes]** — both teams' batting orders lock; Matchup Screen enters a waiting state showing all slots locked and countdown to sim run time
 
 ### Phase 3: Viewing Results
 
-20. Sim runs on schedule
-21. Manager opens app → home screen matchup card shows the final score
-22. Manager clicks matchup → **Matchup Screen (post-sim mode)**, Box Score tab
-23. Manager reviews the line score and player stats, confirming the box score reflects the starting lineup they specified
-24. Manager clicks Play-by-Play tab to read the game narrative
-25. Manager can return to the home screen at any time
+17. Sim runs on schedule
+18. Manager opens app → home screen matchup card shows the final score
+19. Manager clicks matchup → **Matchup Screen (post-sim mode)**, Box Score tab
+20. Manager reviews the line score and player stats, confirming the box score reflects the starting lineup they specified
+21. Manager clicks Play-by-Play tab to read the game narrative
+22. Manager can return to the home screen at any time
 
 ---
 

@@ -133,7 +133,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - SP slot with lock status and countdown to deadline
 - Batting order slots 1–9 with field position display
 - Bench and bullpen sections
-- SP Selection panel (modal): list of pitcher-eligible players, ineligibility indicators, stats
+- Bullpen section with inline "Start" button per pitcher: immediately sets that pitcher as SP; disabled for ineligible pitchers (started in either of the two preceding weeks); hidden after the SP deadline
 - Inline batting order editing: drag to reorder, drag bench player into batting slot (retaining previous field position if ineligible, for manager to resolve), drag bench player onto Pitcher slot → DH; "Use SP instead" control on DH slot card
 - Field position picker per slot (inline dropdown)
 - Inline validation highlighting with hover tooltips
