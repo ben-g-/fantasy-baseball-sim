@@ -104,7 +104,7 @@ function sortedByLastName<T extends { player: { last_name: string; full_name: st
 function playerDetail(player: Player | null | undefined): string {
   if (!player) return ''
   const isPitcher = player.obp_allowed != null
-  const descriptor = isPitcher ? (player.throws === 'L' ? 'LHP' : 'RHP') : player.bats
+  const descriptor = isPitcher ? player.throws : player.bats
   return [player.mlb_team, descriptor].filter(Boolean).join(' · ')
 }
 
