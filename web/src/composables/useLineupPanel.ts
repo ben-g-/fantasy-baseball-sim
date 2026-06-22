@@ -111,6 +111,7 @@ export function useLineupPanel(
   // ── Batting order ────────────────────────────────────────────────────────────
 
   const boItems = ref<DisplayEntry[]>([])
+  const savedBoItems = ref<DisplayEntry[]>([])
   const hasBoChanges = ref(false)
   const boSaving = ref(false)
   const boError = ref('')
@@ -138,7 +139,9 @@ export function useLineupPanel(
     () => lineupRef.value?.batting_order,
     () => {
       if (!lineupRef.value) return
-      boItems.value = toDisplayEntries(lineupRef.value)
+      const entries = toDisplayEntries(lineupRef.value)
+      boItems.value = entries
+      savedBoItems.value = entries
       hasBoChanges.value = false
       boError.value = ''
     },
@@ -302,8 +305,7 @@ export function useLineupPanel(
   }
 
   function revertBattingOrder() {
-    if (!lineupRef.value) return
-    boItems.value = toDisplayEntries(lineupRef.value)
+    boItems.value = [...savedBoItems.value]
     hasBoChanges.value = false
     boError.value = ''
   }
@@ -331,6 +333,7 @@ export function useLineupPanel(
         field_position: item.field_position,
       }))
       await patchBattingOrder(lineupRef.value.id, payload)
+      savedBoItems.value = [...boItems.value]
       hasBoChanges.value = false
     } catch (e: unknown) {
       boError.value = e instanceof Error ? e.message : 'Failed to save batting order'
