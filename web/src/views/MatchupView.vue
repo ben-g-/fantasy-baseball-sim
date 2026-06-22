@@ -5,7 +5,6 @@ import { getMatchup, type Matchup, type Player } from '../lib/api'
 import { useLineupPanel, splitsStats } from '../composables/useLineupPanel'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
-import Dialog from 'primevue/dialog'
 
 const route = useRoute()
 const router = useRouter()
@@ -152,26 +151,31 @@ const editors = [left, right]
 // nested ComputedRef values inside objects must be accessed via .value, which this computed does.
 const es = computed(() => [
   {
-    spLocked:      left.spLocked.value,
-    boLocked:      left.boLocked.value,
-    spDeadlineIso: left.spDeadlineIso.value,
-    boDisplayItems: left.boDisplayItems.value,
-    hasBoChanges:  left.hasBoChanges.value,
-    boError:       left.boError.value,
-    boSaving:      left.boSaving.value,
-    dragIndex:     left.dragIndex.value,
-    dragOverIndex: left.dragOverIndex.value,
+    spLocked:        left.spLocked.value,
+    spDeadlineIso:   left.spDeadlineIso.value,
+    spCandidateIds:  new Set(left.spCandidates.value.map((p) => p.mlb_id)),
+    spSaving:        left.spSaving.value,
+    boLocked:        left.boLocked.value,
+    boDisplayItems:  left.boDisplayItems.value,
+    hasBoChanges:    left.hasBoChanges.value,
+    boError:         left.boError.value,
+    boSaving:        left.boSaving.value,
+    dragIndex:       left.dragIndex.value,
+    dragOverIndex:   left.dragOverIndex.value,
   },
   {
-    spLocked:      right.spLocked.value,
-    boLocked:      right.boLocked.value,
-    spDeadlineIso: right.spDeadlineIso.value,
-    boDisplayItems: right.boDisplayItems.value,
-    hasBoChanges:  right.hasBoChanges.value,
-    boError:       right.boError.value,
-    boSaving:      right.boSaving.value,
-    dragIndex:     right.dragIndex.value,
-    dragOverIndex: right.dragOverIndex.value,
+    spLocked:        right.spLocked.value,
+    spDeadlineIso:   right.spDeadlineIso.value,
+    spCandidateIds:  new Set(right.spCandidates.value.map((p) => p.mlb_id)),
+    spSaving:        right.spSaving.value,
+    spError:         right.spError.value,
+    boLocked:        right.boLocked.value,
+    boDisplayItems:  right.boDisplayItems.value,
+    hasBoChanges:    right.hasBoChanges.value,
+    boError:         right.boError.value,
+    boSaving:        right.boSaving.value,
+    dragIndex:       right.dragIndex.value,
+    dragOverIndex:   right.dragOverIndex.value,
   },
 ])
 </script>
@@ -225,18 +229,9 @@ const es = computed(() => [
           <div class="tc-section tc-sp">
             <div class="sp-header mb-2">
               <span class="section-label">Starting Pitcher</span>
-              <div class="flex align-items-center gap-1">
-                <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-                  {{ deadlineText(es[i].spDeadlineIso) }}
-                </span>
-                <Button
-                  label="Change"
-                  size="small"
-                  text
-                  :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
-                  @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
-                />
-              </div>
+              <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                {{ deadlineText(es[i].spDeadlineIso) }}
+              </span>
             </div>
             <div v-if="panel.lineup.sp?.player" class="player-card">
               <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
@@ -249,14 +244,25 @@ const es = computed(() => [
           </div>
 
           <!-- Section 3: Bullpen -->
-          <div class="tc-section tc-sm">
+          <div class="tc-section tc-sm tc-bullpen">
             <div class="section-label mb-2">Bullpen</div>
             <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
               <div v-for="(b, bi) in sortedByLastName(panel.lineup.bullpen)" :key="bi" class="player-card">
-                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                <span class="player-detail">{{ playerDetail(b.player) }}</span>
-                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+                <div class="bullpen-info">
+                  <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                  <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                  <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+                </div>
+                <Button
+                  v-if="panel.isMyTeam && !es[i].spLocked"
+                  label="Start"
+                  size="small"
+                  outlined
+                  severity="warn"
+                  :disabled="!b.player || !es[i].spCandidateIds.has(b.player.mlb_id) || es[i].spSaving"
+                  @click="b.player && editors[i].selectSP(b.player)"
+                />
               </div>
             </div>
           </div>
@@ -329,22 +335,6 @@ const es = computed(() => [
 
       </div>
 
-      <!-- SP selection dialog (only ever needed for the user's team = panels[0] = left editor) -->
-      <Dialog v-model:visible="left.showSpDialog.value" header="Select Starting Pitcher" :style="{ width: '360px' }" modal>
-        <p v-if="left.spError.value" class="mt-0 text-sm" style="color: var(--red-500);">{{ left.spError.value }}</p>
-        <p v-if="!left.spCandidates.value.length" class="text-color-secondary text-sm mt-0">No pitcher-eligible players available.</p>
-        <div
-          v-for="player in left.spCandidates.value"
-          :key="player.mlb_id"
-          class="player-card mb-1"
-          style="cursor: pointer;"
-          @click="!left.spSaving.value && left.selectSP(player)"
-        >
-          <span class="player-name">{{ player.full_name }}</span>
-          <span class="player-detail">{{ playerDetail(player) }}</span>
-          <span v-if="playerStats(player)" class="player-detail">{{ playerStats(player) }}</span>
-        </div>
-      </Dialog>
     </template>
   </div>
 </template>
@@ -372,6 +362,21 @@ const es = computed(() => [
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.3rem;
+}
+
+/* Bullpen cards: row layout so the Start button sits on the right */
+.tc-bullpen .player-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bullpen-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .tc-section {
