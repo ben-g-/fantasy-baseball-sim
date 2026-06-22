@@ -172,6 +172,7 @@ const es = computed(() => [
     spSaving:        left.spSaving.value,
     boLocked:        left.boLocked.value,
     boDisplayItems:  left.boDisplayItems.value,
+    displayBench:    left.displayBench.value,
     hasBoChanges:    left.hasBoChanges.value,
     boError:         left.boError.value,
     boSaving:        left.boSaving.value,
@@ -186,6 +187,7 @@ const es = computed(() => [
     spError:         right.spError.value,
     boLocked:        right.boLocked.value,
     boDisplayItems:  right.boDisplayItems.value,
+    displayBench:    right.displayBench.value,
     hasBoChanges:    right.hasBoChanges.value,
     boError:         right.boError.value,
     boSaving:        right.boSaving.value,
@@ -329,6 +331,10 @@ const es = computed(() => [
                   class="bo-pos-picker"
                   @change="editors[i].setFieldPosition(idx, ($event.target as HTMLSelectElement).value)"
                 >
+                  <option
+                    v-if="!item.eligible_positions.includes(item.field_position)"
+                    :value="item.field_position"
+                  >{{ item.field_position }}</option>
                   <option v-for="pos in item.eligible_positions" :key="pos" :value="pos">{{ pos }}</option>
                 </select>
                 <span v-else class="bo-pos">{{ item.field_position }}</span>
@@ -355,10 +361,10 @@ const es = computed(() => [
           <!-- Section 5: Bench -->
           <div class="tc-section tc-sm">
             <div class="section-label mb-2">Bench</div>
-            <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+            <div v-if="!es[i].displayBench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
               <div
-                v-for="(b, bi) in sortedByLastName(panel.lineup.bench)"
+                v-for="(b, bi) in sortedByLastName(es[i].displayBench)"
                 :key="bi"
                 class="player-card"
                 :class="{ 'player-card--draggable': panel.isMyTeam && !es[i].boLocked && !!b.player }"

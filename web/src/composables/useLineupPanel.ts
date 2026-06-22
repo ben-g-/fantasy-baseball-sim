@@ -150,6 +150,22 @@ export function useLineupPanel(
     return toDisplayEntries(lineupRef.value)
   })
 
+  const displayBench = computed(() => {
+    const lineup = lineupRef.value
+    if (!lineup) return []
+    if (!isMyTeam.value || boLocked.value) return lineup.bench
+    const inOrder = new Set(boItems.value.map((e) => e.player_id))
+    const spId = lineup.sp?.player?.mlb_id
+    const serverBench = lineup.bench.filter((b) => !b.player || !inOrder.has(b.player.mlb_id))
+    const displaced = lineup.batting_order
+      .filter((e) => {
+        const id = e.player?.mlb_id
+        return id != null && !inOrder.has(id) && id !== spId
+      })
+      .map((e) => ({ player: e.player }))
+    return [...serverBench, ...displaced]
+  })
+
   const dragIndex = ref<number | null>(null)
   const dragOverIndex = ref<number | null>(null)
   const benchDragPlayerId = ref<number | null>(null)
@@ -175,9 +191,10 @@ export function useLineupPanel(
   function dropBenchPlayer(targetIndex: number, playerId: number) {
     const lineup = lineupRef.value
     if (!lineup) return
-    const benchEntry = lineup.bench.find((b) => b.player?.mlb_id === playerId)
-    if (!benchEntry?.player) return
-    const player = benchEntry.player
+    const player =
+      lineup.bench.find((b) => b.player?.mlb_id === playerId)?.player ??
+      lineup.batting_order.find((e) => e.player?.mlb_id === playerId)?.player
+    if (!player) return
     const currentFieldPos = boItems.value[targetIndex].field_position
     const { obp, slg } = playerOBPSLG(player)
     boItems.value[targetIndex] = {
@@ -246,7 +263,7 @@ export function useLineupPanel(
   return {
     spDeadlineIso, spLocked, boLocked, deadlineText, pitcherHand,
     showSpDialog, spSaving, spError, spCandidates, selectSP,
-    boDisplayItems, hasBoChanges, boSaving, boError,
+    boDisplayItems, displayBench, hasBoChanges, boSaving, boError,
     dragIndex, dragOverIndex, onDragStart, onBenchDragStart, onDragEnd, onDragOver, onDrop,
     setFieldPosition, revertBattingOrder, saveBattingOrder,
   }
