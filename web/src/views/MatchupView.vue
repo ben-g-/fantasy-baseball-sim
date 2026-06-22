@@ -365,7 +365,8 @@ const es = computed(() => [
   padding: 0.75rem;
 }
 
-.tc-section + .tc-section {
+/* Divider only between bullpen (child 3) and batting order (child 4) */
+.team-card > .tc-section:nth-child(4) {
   border-top: 1px solid var(--p-surface-200);
 }
 
