@@ -249,14 +249,19 @@ const es = computed(() => [
               </span>
             </div>
             <div v-if="panel.lineup.sp?.player" class="player-card">
-              <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
-              <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
-              <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
+              <div class="sp-info">
+                <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
+                <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
+                <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
+              </div>
+              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</span>
             </div>
             <div v-else class="player-card">
-              <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+              <div class="sp-info">
+                <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+              </div>
+              <span v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</span>
             </div>
-            <p v-if="panel.isMyTeam && !es[i].spLocked" class="sp-change-hint">change via bullpen ↓</p>
           </div>
 
           <!-- Section 3: Bullpen -->
@@ -418,11 +423,26 @@ const es = computed(() => [
   color: var(--p-surface-400);
 }
 
+.tc-sp .player-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sp-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
 .sp-change-hint {
-  margin: 0.3rem 0 0;
   font-size: 0.7rem;
   color: var(--p-surface-400);
   font-style: italic;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sp-header {
