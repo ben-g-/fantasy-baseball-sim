@@ -208,50 +208,43 @@ const es = computed(() => [
             </div>
           </div>
 
-          <!-- Section 2: SP + Bullpen side-by-side -->
+          <!-- Section 2: Starting Pitcher -->
           <div class="tc-section">
-            <div class="pitcher-section">
-
-              <!-- SP -->
-              <div style="flex: 1; min-width: 0;">
-                <div class="sp-header mb-2">
-                  <span class="section-label">Starting Pitcher</span>
-                  <div class="flex align-items-center gap-1">
-                    <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-                      {{ deadlineText(es[i].spDeadlineIso) }}
-                    </span>
-                    <Button
-                      label="Change"
-                      size="small"
-                      text
-                      :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
-                      @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
-                    />
-                  </div>
-                </div>
-                <div v-if="panel.lineup.sp?.player" class="player-card">
-                  <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
-                  <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
-                  <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
-                </div>
-                <div v-else class="player-card">
-                  <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
-                </div>
+            <div class="sp-header mb-2">
+              <span class="section-label">Starting Pitcher</span>
+              <div class="flex align-items-center gap-1">
+                <span class="text-xs" :style="es[i].spLocked ? 'color: var(--red-400);' : 'color: var(--green-500);'">
+                  {{ deadlineText(es[i].spDeadlineIso) }}
+                </span>
+                <Button
+                  label="Change"
+                  size="small"
+                  text
+                  :style="panel.isMyTeam && !es[i].spLocked ? '' : 'visibility: hidden; pointer-events: none;'"
+                  @click="panel.isMyTeam && !es[i].spLocked ? (editors[i].showSpDialog.value = true) : undefined"
+                />
               </div>
+            </div>
+            <div v-if="panel.lineup.sp?.player" class="player-card">
+              <span class="player-name">{{ panel.lineup.sp.player.full_name }}</span>
+              <span class="player-detail">{{ playerDetail(panel.lineup.sp.player) }}</span>
+              <span v-if="playerStats(panel.lineup.sp.player)" class="player-detail">{{ playerStats(panel.lineup.sp.player) }}</span>
+            </div>
+            <div v-else class="player-card">
+              <span class="player-name" style="font-style: italic; color: var(--p-surface-400);">No SP set</span>
+            </div>
+          </div>
 
-              <!-- Bullpen -->
-              <div style="flex: 1; min-width: 0;">
-                <div class="section-label mb-2">Bullpen</div>
-                <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-                <div class="player-list">
-                  <div v-for="(b, bi) in sortedByLastName(panel.lineup.bullpen)" :key="bi" class="player-card">
-                    <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                    <span class="player-detail">{{ playerDetail(b.player) }}</span>
-                    <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
-                  </div>
-                </div>
+          <!-- Section 3: Bullpen -->
+          <div class="tc-section">
+            <div class="section-label mb-2">Bullpen</div>
+            <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+            <div class="player-grid">
+              <div v-for="(b, bi) in sortedByLastName(panel.lineup.bullpen)" :key="bi" class="player-card">
+                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
               </div>
-
             </div>
           </div>
 
@@ -306,11 +299,11 @@ const es = computed(() => [
             </div>
           </div>
 
-          <!-- Section 4: Bench -->
+          <!-- Section 5: Bench -->
           <div class="tc-section">
             <div class="section-label mb-2">Bench</div>
             <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
-            <div class="player-list">
+            <div class="player-grid">
               <div v-for="(b, bi) in sortedByLastName(panel.lineup.bench)" :key="bi" class="player-card">
                 <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
                 <span class="player-detail">{{ playerDetail(b.player) }}</span>
@@ -344,21 +337,28 @@ const es = computed(() => [
 </template>
 
 <style scoped>
-/* 4 named row tracks — one per section. team-card subgrid cells align to these tracks,
-   so corresponding sections (pitchers, batting order, bench) are always the same height. */
+/* 5 named row tracks — one per section. team-card subgrid cells align to these tracks,
+   so corresponding sections (sp, bullpen, batting order, bench) are always the same height. */
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(4, auto);
+  grid-template-rows: repeat(5, auto);
   column-gap: 1.5rem;
 }
 
-/* Span all 4 rows; subgrid means the card's 4 direct children use the parent's row tracks */
+/* Span all 5 rows; subgrid means the card's 5 direct children use the parent's row tracks */
 .team-card {
-  grid-row: 1 / 5;
+  grid-row: 1 / 6;
   display: grid;
   grid-template-rows: subgrid;
   overflow: hidden; /* clips content to border-round radius */
+}
+
+/* Two-column grid for bullpen and bench */
+.player-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
 }
 
 .tc-section {
@@ -376,13 +376,6 @@ const es = computed(() => [
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--p-surface-400);
-}
-
-/* ── Pitcher section (SP + Bullpen side-by-side) ────── */
-.pitcher-section {
-  display: flex;
-  gap: 0.75rem;
-  align-items: start;
 }
 
 .sp-header {
