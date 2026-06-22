@@ -326,12 +326,12 @@ const es = computed(() => [
                   <span v-if="item.obp != null" class="player-detail">
                     OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
                   </span>
-                  <button
-                    v-if="panel.isMyTeam && !es[i].boLocked && item.field_position === 'DH' && panel.lineup.sp?.player && !es[i].spInOrder"
-                    class="use-sp-btn"
-                    @click.stop="editors[i].useSpInstead(idx)"
-                  >Use SP instead</button>
                 </div>
+                <button
+                  v-if="panel.isMyTeam && !es[i].boLocked && item.field_position === 'DH' && panel.lineup.sp?.player && !es[i].spInOrder"
+                  class="use-sp-btn"
+                  @click.stop="editors[i].useSpInstead(idx)"
+                >Use SP instead</button>
                 <select
                   v-if="panel.isMyTeam && !es[i].boLocked && item.field_position !== 'P'"
                   :value="item.field_position"
@@ -601,16 +601,19 @@ const es = computed(() => [
 }
 
 .use-sp-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 4px;
   color: var(--p-primary-color, #6366f1);
-  cursor: pointer;
-  text-align: left;
+  background: #ffffff;
   font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.use-sp-btn:hover { text-decoration: underline; }
+.use-sp-btn:hover { background: var(--p-surface-50); }
 
 .bo-pos-picker {
   font-size: 0.7rem;
