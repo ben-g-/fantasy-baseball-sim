@@ -92,7 +92,7 @@ function statusLabel(status: string) {
 // ── Sorting helpers ──────────────────────────────────────────────────────────
 function sortedByLastName<T extends { player: { last_name: string } | null }>(items: T[]): T[] {
   return [...items].sort((a, b) =>
-    (a.player?.last_name ?? '').localeCompare(b.player?.last_name ?? ''),
+    (a.player?.last_name ?? '').localeCompare(b.player?.last_name ?? '', 'en', { sensitivity: 'base' }),
   )
 }
 
