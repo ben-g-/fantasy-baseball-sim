@@ -357,10 +357,23 @@ const es = computed(() => [
             <div class="section-label mb-2">Bench</div>
             <div v-if="!panel.lineup.bench.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
-              <div v-for="(b, bi) in sortedByLastName(panel.lineup.bench)" :key="bi" class="player-card">
-                <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                <span class="player-detail">{{ benchDetail(b.player) }}</span>
-                <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+              <div
+                v-for="(b, bi) in sortedByLastName(panel.lineup.bench)"
+                :key="bi"
+                class="player-card"
+                :class="{ 'player-card--draggable': panel.isMyTeam && !es[i].boLocked && !!b.player }"
+                :draggable="panel.isMyTeam && !es[i].boLocked && !!b.player"
+                @dragstart="panel.isMyTeam && !es[i].boLocked && b.player ? editors[i].onBenchDragStart(b.player.mlb_id) : undefined"
+                @dragend="editors[i].onDragEnd()"
+              >
+                <div class="bench-card-inner">
+                  <span class="bench-grip" :style="panel.isMyTeam && !es[i].boLocked ? '' : 'visibility: hidden'">⠿</span>
+                  <div class="bench-player">
+                      <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
+                    <span class="player-detail">{{ benchDetail(b.player) }}</span>
+                    <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -511,6 +524,30 @@ const es = computed(() => [
 
 .bo-row[draggable='true'] { cursor: grab; }
 .bo-row[draggable='true']:active { cursor: grabbing; }
+.tc-sm .player-card[draggable='true'] { cursor: grab; }
+.tc-sm .player-card[draggable='true']:active { cursor: grabbing; }
+
+.bench-card-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.bench-grip {
+  color: var(--p-surface-400);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  user-select: none;
+  margin-top: 0.05rem;
+}
+
+.bench-player {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
 .bo-drag-over { border-color: var(--p-primary-color, #6366f1) !important; }
 
 .bo-grip {

@@ -25,6 +25,22 @@ export function splitsStats(s: BatterSplits): { obp: number; slg: number } {
   }
 }
 
+function playerOBPSLG(player: Player | null | undefined): { obp: number | null; slg: number | null } {
+  const splits = player?.vs_rhp ?? player?.vs_lhp ?? null
+  if (!splits) return { obp: null, slg: null }
+  const { obp, slg } = splitsStats(splits)
+  return { obp, slg }
+}
+
+function sortedEligiblePositions(player: Player | null | undefined): string[] {
+  const raw = (player?.eligible_positions ?? []).filter((p) => p !== 'P')
+  return [...raw].sort((a, b) => {
+    const ai = FIELD_POSITION_ORDER.indexOf(a)
+    const bi = FIELD_POSITION_ORDER.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+}
+
 export function useLineupPanel(
   lineupRef: Ref<Lineup | undefined>,
   isHome: Ref<boolean>,
@@ -103,23 +119,16 @@ export function useLineupPanel(
       .slice()
       .sort((a, b) => a.batting_position - b.batting_position)
       .map((e) => {
-        const splits = e.player?.vs_rhp ?? e.player?.vs_lhp ?? null
-        const stats = splits ? splitsStats(splits) : null
-        const rawPositions = (e.player?.eligible_positions ?? []).filter((p) => p !== 'P')
-        const sortedPositions = [...rawPositions].sort((a, b) => {
-          const ai = FIELD_POSITION_ORDER.indexOf(a)
-          const bi = FIELD_POSITION_ORDER.indexOf(b)
-          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-        })
+        const { obp, slg } = playerOBPSLG(e.player)
         return {
           field_position: e.field_position,
-          eligible_positions: sortedPositions,
+          eligible_positions: sortedEligiblePositions(e.player),
           player_id: e.player?.mlb_id ?? 0,
           full_name: e.player?.full_name ?? '—',
           mlb_team: e.player?.mlb_team ?? '',
           bats: e.player?.bats ?? '',
-          obp: stats?.obp ?? null,
-          slg: stats?.slg ?? null,
+          obp,
+          slg,
         }
       })
   }
@@ -143,12 +152,54 @@ export function useLineupPanel(
 
   const dragIndex = ref<number | null>(null)
   const dragOverIndex = ref<number | null>(null)
+  const benchDragPlayerId = ref<number | null>(null)
 
-  function onDragStart(index: number) { dragIndex.value = index }
-  function onDragEnd() { dragIndex.value = null; dragOverIndex.value = null }
+  function onDragStart(index: number) {
+    dragIndex.value = index
+    benchDragPlayerId.value = null
+  }
+
+  function onBenchDragStart(playerId: number) {
+    benchDragPlayerId.value = playerId
+    dragIndex.value = null
+  }
+
+  function onDragEnd() {
+    dragIndex.value = null
+    dragOverIndex.value = null
+    benchDragPlayerId.value = null
+  }
+
   function onDragOver(index: number) { dragOverIndex.value = index }
 
+  function dropBenchPlayer(targetIndex: number, playerId: number) {
+    const lineup = lineupRef.value
+    if (!lineup) return
+    const benchEntry = lineup.bench.find((b) => b.player?.mlb_id === playerId)
+    if (!benchEntry?.player) return
+    const player = benchEntry.player
+    const currentFieldPos = boItems.value[targetIndex].field_position
+    const { obp, slg } = playerOBPSLG(player)
+    boItems.value[targetIndex] = {
+      field_position: currentFieldPos === 'P' ? 'DH' : currentFieldPos,
+      eligible_positions: sortedEligiblePositions(player),
+      player_id: player.mlb_id,
+      full_name: player.full_name,
+      mlb_team: player.mlb_team,
+      bats: player.bats,
+      obp,
+      slg,
+    }
+    hasBoChanges.value = true
+  }
+
   function onDrop(targetIndex: number) {
+    if (benchDragPlayerId.value !== null) {
+      dropBenchPlayer(targetIndex, benchDragPlayerId.value)
+      benchDragPlayerId.value = null
+      dragOverIndex.value = null
+      return
+    }
     if (dragIndex.value === null || dragIndex.value === targetIndex) {
       dragIndex.value = null; dragOverIndex.value = null; return
     }
@@ -196,7 +247,7 @@ export function useLineupPanel(
     spDeadlineIso, spLocked, boLocked, deadlineText, pitcherHand,
     showSpDialog, spSaving, spError, spCandidates, selectSP,
     boDisplayItems, hasBoChanges, boSaving, boError,
-    dragIndex, dragOverIndex, onDragStart, onDragEnd, onDragOver, onDrop,
+    dragIndex, dragOverIndex, onDragStart, onBenchDragStart, onDragEnd, onDragOver, onDrop,
     setFieldPosition, revertBattingOrder, saveBattingOrder,
   }
 }
