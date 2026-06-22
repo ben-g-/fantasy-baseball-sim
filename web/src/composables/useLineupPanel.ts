@@ -180,7 +180,7 @@ export function useLineupPanel(
     const hasP = assignedSet.has('P')
     const expected = [...FIELDING_POSITIONS, hasP ? 'P' : 'DH']
     const missing = expected.filter((p) => !assignedSet.has(p))
-    const missingSuffix = missing.map((p) => `missing ${p}`).join(', ')
+    const missingSuffix = missing.map((p) => `missing ${p}`).join(' · ')
 
     const posIndices = new Map<string, number[]>()
     items.forEach((item, idx) => {
