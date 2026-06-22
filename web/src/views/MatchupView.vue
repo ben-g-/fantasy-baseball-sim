@@ -323,7 +323,15 @@ const es = computed(() => [
                     OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
                   </span>
                 </div>
-                <span class="bo-pos">{{ item.field_position }}</span>
+                <select
+                  v-if="panel.isMyTeam && !es[i].boLocked && item.field_position !== 'P'"
+                  :value="item.field_position"
+                  class="bo-pos-picker"
+                  @change="editors[i].setFieldPosition(idx, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option v-for="pos in item.eligible_positions" :key="pos" :value="pos">{{ pos }}</option>
+                </select>
+                <span v-else class="bo-pos">{{ item.field_position }}</span>
               </div>
             </div>
 
@@ -540,5 +548,24 @@ const es = computed(() => [
   background: #ffffff;
   font-family: monospace;
   flex-shrink: 0;
+}
+
+.bo-pos-picker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.2rem;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 4px;
+  color: var(--p-surface-600);
+  background: #ffffff;
+  font-family: monospace;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.bo-pos-picker:focus {
+  outline: 2px solid var(--p-primary-color, #6366f1);
+  outline-offset: 1px;
+  border-color: transparent;
 }
 </style>

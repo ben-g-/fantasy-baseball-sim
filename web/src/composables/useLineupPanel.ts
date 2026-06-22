@@ -4,6 +4,7 @@ import { patchSP, patchBattingOrder, type Lineup, type Deadlines, type Player, t
 
 export interface DisplayEntry {
   field_position: string
+  eligible_positions: string[] // non-pitcher positions available in the field position picker
   player_id: number
   full_name: string
   mlb_team: string
@@ -11,6 +12,8 @@ export interface DisplayEntry {
   obp: number | null
   slg: number | null
 }
+
+const FIELD_POSITION_ORDER = ['C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF', 'DH']
 
 export function splitsStats(s: BatterSplits): { obp: number; slg: number } {
   const h = s.singles + s.doubles + s.triples + s.hr
@@ -102,8 +105,15 @@ export function useLineupPanel(
       .map((e) => {
         const splits = e.player?.vs_rhp ?? e.player?.vs_lhp ?? null
         const stats = splits ? splitsStats(splits) : null
+        const rawPositions = (e.player?.eligible_positions ?? []).filter((p) => p !== 'P')
+        const sortedPositions = [...rawPositions].sort((a, b) => {
+          const ai = FIELD_POSITION_ORDER.indexOf(a)
+          const bi = FIELD_POSITION_ORDER.indexOf(b)
+          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+        })
         return {
           field_position: e.field_position,
+          eligible_positions: sortedPositions,
           player_id: e.player?.mlb_id ?? 0,
           full_name: e.player?.full_name ?? '—',
           mlb_team: e.player?.mlb_team ?? '',
@@ -150,6 +160,11 @@ export function useLineupPanel(
     dragIndex.value = null; dragOverIndex.value = null
   }
 
+  function setFieldPosition(idx: number, pos: string) {
+    boItems.value[idx].field_position = pos
+    hasBoChanges.value = true
+  }
+
   function revertBattingOrder() {
     if (!lineupRef.value) return
     boItems.value = toDisplayEntries(lineupRef.value)
@@ -182,6 +197,6 @@ export function useLineupPanel(
     showSpDialog, spSaving, spError, spCandidates, selectSP,
     boDisplayItems, hasBoChanges, boSaving, boError,
     dragIndex, dragOverIndex, onDragStart, onDragEnd, onDragOver, onDrop,
-    revertBattingOrder, saveBattingOrder,
+    setFieldPosition, revertBattingOrder, saveBattingOrder,
   }
 }
