@@ -264,12 +264,23 @@ matchupsRouter.get('/teams/:id/matchups', requireAuth, async (req: Request, res:
     return;
   }
 
-  const allTeamIds = [...new Set(matchups.flatMap((m) => [m.home_team_id, m.road_team_id]))];
-  const { data: allTeams } = await supabase
-    .from('teams')
-    .select('id, name')
-    .in('id', allTeamIds);
-  const teamMap = Object.fromEntries((allTeams ?? []).map((t) => [t.id, { id: t.id, name: t.name }]));
+  const matchupIds = matchups.map((m) => m.id);
+
+  const [allTeamsRes, lineupRows] = await Promise.all([
+    supabase.from('teams').select('id, name').in('id', [
+      ...new Set(matchups.flatMap((m) => [m.home_team_id, m.road_team_id])),
+    ]),
+    supabase.from('lineups').select('matchup_id').in('matchup_id', matchupIds),
+  ]);
+
+  const teamMap = Object.fromEntries(
+    (allTeamsRes.data ?? []).map((t) => [t.id, { id: t.id, name: t.name }]),
+  );
+
+  const lineupCountMap: Record<string, number> = {};
+  for (const row of lineupRows.data ?? []) {
+    lineupCountMap[row.matchup_id] = (lineupCountMap[row.matchup_id] ?? 0) + 1;
+  }
 
   res.json(
     matchups.map((m) => ({
@@ -280,6 +291,7 @@ matchupsRouter.get('/teams/:id/matchups', requireAuth, async (req: Request, res:
       home_team: teamMap[m.home_team_id] ?? null,
       road_team: teamMap[m.road_team_id] ?? null,
       final_score: null,
+      has_lineup: (lineupCountMap[m.id] ?? 0) >= 2,
     })),
   );
 });

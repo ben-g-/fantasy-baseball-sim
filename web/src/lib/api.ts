@@ -111,6 +111,7 @@ export interface MatchupSummary {
   home_team: { id: string; name: string } | null
   road_team: { id: string; name: string } | null
   final_score: { home: number; road: number } | null
+  has_lineup: boolean
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────

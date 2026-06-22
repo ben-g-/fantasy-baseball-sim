@@ -127,8 +127,8 @@ onMounted(async () => {
         v-for="m in visibleMatchups(team)"
         :key="m.id"
         class="surface-card border-round p-3 mb-2 flex align-items-center justify-content-between"
-        style="cursor: pointer;"
-        @click="router.push(`/matchups/${m.id}`)"
+        :class="m.has_lineup ? 'matchup-available' : 'matchup-unavailable'"
+        @click="m.has_lineup ? router.push(`/matchups/${m.id}`) : undefined"
       >
         <div>
           <span class="font-medium">Week {{ m.week_number }}</span>
@@ -155,3 +155,17 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.matchup-available {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.matchup-available:hover {
+  background-color: var(--p-surface-100) !important;
+}
+.matchup-unavailable {
+  cursor: default;
+  opacity: 0.5;
+}
+</style>
