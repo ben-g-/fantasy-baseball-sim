@@ -198,6 +198,16 @@ export function useLineupPanel(
       }
     })
 
+    // P and DH cannot coexist
+    const hasP = items.some((item) => item.field_position === 'P')
+    if (hasP) {
+      items.forEach((item, idx) => {
+        if (item.field_position === 'DH') {
+          result[idx].push('A DH cannot be used when the pitcher is batting for himself')
+        }
+      })
+    }
+
     return result
   })
 
