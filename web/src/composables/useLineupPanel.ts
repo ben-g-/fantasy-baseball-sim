@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import { patchSP, patchBattingOrder, type Lineup, type Deadlines, type Player, type BatterSplits } from '../lib/api'
 
@@ -167,6 +167,39 @@ export function useLineupPanel(
     return [...lineup.bullpen, ...booPitchers]
   })
 
+  const boConflicts = computed<string[][]>(() => {
+    if (!isMyTeam.value || boLocked.value) return boItems.value.map(() => [])
+    const items = boItems.value
+    const result: string[][] = items.map(() => [])
+
+    const posIndices = new Map<string, number[]>()
+    items.forEach((item, idx) => {
+      if (item.field_position && item.field_position !== 'P') {
+        const list = posIndices.get(item.field_position) ?? []
+        list.push(idx)
+        posIndices.set(item.field_position, list)
+      }
+    })
+    posIndices.forEach((indices, pos) => {
+      if (indices.length > 1) indices.forEach((idx) => result[idx].push(`Duplicate ${pos}`))
+    })
+
+    items.forEach((item, idx) => {
+      if (
+        item.field_position &&
+        item.field_position !== 'P' &&
+        item.eligible_positions.length > 0 &&
+        !item.eligible_positions.includes(item.field_position)
+      ) {
+        result[idx].push(`${item.full_name} cannot play ${item.field_position}`)
+      }
+    })
+
+    return result
+  })
+
+  const boIsValid = computed(() => boConflicts.value.every((c) => c.length === 0))
+
   const displayBench = computed(() => {
     const lineup = lineupRef.value
     if (!lineup) return []
@@ -275,6 +308,18 @@ export function useLineupPanel(
     boError.value = ''
   }
 
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  watch([hasBoChanges, boIsValid], ([changes, valid]) => {
+    if (saveTimer !== null) clearTimeout(saveTimer)
+    if (changes && valid && isMyTeam.value && !boLocked.value) {
+      saveTimer = setTimeout(() => {
+        saveTimer = null
+        if (hasBoChanges.value && boIsValid.value && !boSaving.value) void saveBattingOrder()
+      }, 500)
+    }
+  })
+  onUnmounted(() => { if (saveTimer !== null) clearTimeout(saveTimer) })
+
   async function saveBattingOrder() {
     if (!lineupRef.value) return
     boSaving.value = true
@@ -298,7 +343,8 @@ export function useLineupPanel(
   return {
     spDeadlineIso, spLocked, boLocked, deadlineText, pitcherHand,
     showSpDialog, spSaving, spError, spCandidates, selectSP,
-    boDisplayItems, displayPitchingStaff, displayBench, spInOrder, hasBoChanges, boSaving, boError,
+    boDisplayItems, displayPitchingStaff, displayBench, spInOrder,
+    boConflicts, boIsValid, hasBoChanges, boSaving, boError,
     dragIndex, dragOverIndex, onDragStart, onBenchDragStart, onDragEnd, onDragOver, onDrop,
     useSpInstead, setFieldPosition, revertBattingOrder, saveBattingOrder,
   }

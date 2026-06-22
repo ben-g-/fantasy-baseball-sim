@@ -175,6 +175,8 @@ const es = computed(() => [
     displayPitchingStaff: left.displayPitchingStaff.value,
     displayBench:         left.displayBench.value,
     spInOrder:       left.spInOrder.value,
+    boConflicts:     left.boConflicts.value,
+    boIsValid:       left.boIsValid.value,
     hasBoChanges:    left.hasBoChanges.value,
     boError:         left.boError.value,
     boSaving:        left.boSaving.value,
@@ -192,6 +194,8 @@ const es = computed(() => [
     displayPitchingStaff: right.displayPitchingStaff.value,
     displayBench:         right.displayBench.value,
     spInOrder:       right.spInOrder.value,
+    boConflicts:     right.boConflicts.value,
+    boIsValid:       right.boIsValid.value,
     hasBoChanges:    right.hasBoChanges.value,
     boError:         right.boError.value,
     boSaving:        right.boSaving.value,
@@ -337,8 +341,9 @@ const es = computed(() => [
                 >Use pitcher instead</button>
                 <select
                   v-if="panel.isMyTeam && !es[i].boLocked && item.field_position !== 'P'"
+                  v-tooltip.top="es[i].boConflicts[idx]?.length ? es[i].boConflicts[idx].join(' · ') : undefined"
                   :value="item.field_position"
-                  class="bo-pos-picker"
+                  :class="['bo-pos-picker', { 'bo-pos--invalid': es[i].boConflicts[idx]?.length }]"
                   @change="editors[i].setFieldPosition(idx, ($event.target as HTMLSelectElement).value)"
                 >
                   <option
@@ -349,8 +354,8 @@ const es = computed(() => [
                 </select>
                 <span
                   v-else
-                  v-tooltip.top="item.field_position === 'P' ? 'The pitcher is batting for himself. To use a DH instead, drag a bench player onto this slot.' : undefined"
-                  class="bo-pos"
+                  v-tooltip.top="es[i].boConflicts[idx]?.length ? es[i].boConflicts[idx].join(' · ') : (item.field_position === 'P' ? 'The pitcher is batting for himself. To use a DH instead, drag a bench player onto this slot.' : undefined)"
+                  :class="['bo-pos', { 'bo-pos--invalid': es[i].boConflicts[idx]?.length && item.field_position !== 'P' }]"
                 >{{ item.field_position }}</span>
               </div>
             </div>
@@ -365,9 +370,6 @@ const es = computed(() => [
                 <Button label="Revert" severity="secondary" outlined size="small"
                   :disabled="es[i].boSaving"
                   @click="editors[i].revertBattingOrder()" />
-                <Button label="Save order" size="small"
-                  :loading="es[i].boSaving"
-                  @click="editors[i].saveBattingOrder()" />
               </div>
             </div>
           </div>
@@ -621,6 +623,12 @@ const es = computed(() => [
   flex-shrink: 0;
 }
 .use-sp-btn:hover { background: var(--p-surface-50); }
+
+.bo-pos--invalid {
+  border-color: var(--red-400, #f87171) !important;
+  color: var(--red-500, #ef4444) !important;
+  background: var(--red-50, #fff5f5) !important;
+}
 
 .bo-pos-picker {
   font-size: 0.7rem;
