@@ -346,7 +346,11 @@ const es = computed(() => [
                   >{{ item.field_position }}</option>
                   <option v-for="pos in item.eligible_positions" :key="pos" :value="pos">{{ pos }}</option>
                 </select>
-                <span v-else class="bo-pos">{{ item.field_position }}</span>
+                <span
+                  v-else
+                  v-tooltip.top="item.field_position === 'P' ? 'The pitcher is batting for himself. To use a DH instead, drag a bench player onto this slot.' : undefined"
+                  class="bo-pos"
+                >{{ item.field_position }}</span>
               </div>
             </div>
 
