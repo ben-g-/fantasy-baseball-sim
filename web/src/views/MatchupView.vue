@@ -108,6 +108,19 @@ function playerDetail(player: Player | null | undefined): string {
   return [player.mlb_team, descriptor].filter(Boolean).join(' · ')
 }
 
+const POSITION_ORDER = ['C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF', 'DH']
+
+function benchDetail(player: Player | null | undefined): string {
+  if (!player) return ''
+  const sorted = [...player.display_positions].sort((a, b) => {
+    const ai = POSITION_ORDER.indexOf(a)
+    const bi = POSITION_ORDER.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+  const base = playerDetail(player)
+  return sorted.length ? `${base} · ${sorted.join(' ')}` : base
+}
+
 // Line 3: OBP / SLG — pitcher allowed stats or batter splits
 function playerStats(player: Player | null | undefined): string | null {
   if (!player) return null
@@ -306,7 +319,7 @@ const es = computed(() => [
             <div class="player-grid">
               <div v-for="(b, bi) in sortedByLastName(panel.lineup.bench)" :key="bi" class="player-card">
                 <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
-                <span class="player-detail">{{ playerDetail(b.player) }}</span>
+                <span class="player-detail">{{ benchDetail(b.player) }}</span>
                 <span v-if="playerStats(b.player)" class="player-detail">{{ playerStats(b.player) }}</span>
               </div>
             </div>
