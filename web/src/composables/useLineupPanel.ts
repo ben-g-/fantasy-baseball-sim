@@ -79,17 +79,18 @@ export function useLineupPanel(
     const lineup = lineupRef.value
     if (!lineup) return []
     const currentSpId = lineup.sp?.player?.mlb_id
-    const inOrder = new Set(
-      lineup.batting_order
-        .map((e) => e.player?.mlb_id)
-        .filter((id): id is number => id != null),
-    )
-    return lineup.bullpen
+    const fromBullpen = lineup.bullpen
+      .map((e) => e.player)
+      .filter((p): p is Player => p !== null && p.mlb_id !== currentSpId)
+    const fromOrder = lineup.batting_order
       .map((e) => e.player)
       .filter(
         (p): p is Player =>
-          p !== null && p.mlb_id !== currentSpId && !inOrder.has(p.mlb_id),
+          p !== null &&
+          p.mlb_id !== currentSpId &&
+          (p.eligible_positions ?? []).includes('P'),
       )
+    return [...fromBullpen, ...fromOrder]
   })
 
   async function selectSP(player: Player) {
@@ -154,6 +155,16 @@ export function useLineupPanel(
     if (isMyTeam.value && !boLocked.value) return boItems.value
     if (!lineupRef.value) return []
     return toDisplayEntries(lineupRef.value)
+  })
+
+  const displayPitchingStaff = computed(() => {
+    const lineup = lineupRef.value
+    if (!lineup) return []
+    const spId = lineup.sp?.player?.mlb_id
+    const booPitchers = lineup.batting_order
+      .filter((e) => e.player?.mlb_id !== spId && (e.player?.eligible_positions ?? []).includes('P'))
+      .map((e) => ({ player: e.player }))
+    return [...lineup.bullpen, ...booPitchers]
   })
 
   const displayBench = computed(() => {
@@ -287,7 +298,7 @@ export function useLineupPanel(
   return {
     spDeadlineIso, spLocked, boLocked, deadlineText, pitcherHand,
     showSpDialog, spSaving, spError, spCandidates, selectSP,
-    boDisplayItems, displayBench, spInOrder, hasBoChanges, boSaving, boError,
+    boDisplayItems, displayPitchingStaff, displayBench, spInOrder, hasBoChanges, boSaving, boError,
     dragIndex, dragOverIndex, onDragStart, onBenchDragStart, onDragEnd, onDragOver, onDrop,
     useSpInstead, setFieldPosition, revertBattingOrder, saveBattingOrder,
   }

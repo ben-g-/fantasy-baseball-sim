@@ -171,8 +171,9 @@ const es = computed(() => [
     spCandidateIds:  new Set(left.spCandidates.value.map((p) => p.mlb_id)),
     spSaving:        left.spSaving.value,
     boLocked:        left.boLocked.value,
-    boDisplayItems:  left.boDisplayItems.value,
-    displayBench:    left.displayBench.value,
+    boDisplayItems:       left.boDisplayItems.value,
+    displayPitchingStaff: left.displayPitchingStaff.value,
+    displayBench:         left.displayBench.value,
     spInOrder:       left.spInOrder.value,
     hasBoChanges:    left.hasBoChanges.value,
     boError:         left.boError.value,
@@ -187,8 +188,9 @@ const es = computed(() => [
     spSaving:        right.spSaving.value,
     spError:         right.spError.value,
     boLocked:        right.boLocked.value,
-    boDisplayItems:  right.boDisplayItems.value,
-    displayBench:    right.displayBench.value,
+    boDisplayItems:       right.boDisplayItems.value,
+    displayPitchingStaff: right.displayPitchingStaff.value,
+    displayBench:         right.displayBench.value,
     spInOrder:       right.spInOrder.value,
     hasBoChanges:    right.hasBoChanges.value,
     boError:         right.boError.value,
@@ -268,12 +270,12 @@ const es = computed(() => [
             </div>
           </div>
 
-          <!-- Section 3: Bullpen -->
+          <!-- Section 3: Pitchers -->
           <div class="tc-section tc-sm tc-bullpen">
-            <div class="section-label mb-2">Bullpen</div>
-            <div v-if="!panel.lineup.bullpen.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
+            <div class="section-label mb-2">Pitchers</div>
+            <div v-if="!es[i].displayPitchingStaff.length" class="text-color-secondary text-sm" style="font-style: italic;">Empty</div>
             <div class="player-grid">
-              <div v-for="(b, bi) in sortedByLastName(panel.lineup.bullpen)" :key="bi" class="player-card">
+              <div v-for="(b, bi) in sortedByLastName(es[i].displayPitchingStaff)" :key="bi" class="player-card">
                 <div class="bullpen-info">
                   <span class="player-name">{{ b.player?.full_name ?? '—' }}</span>
                   <span class="player-detail">{{ playerDetail(b.player) }}</span>
