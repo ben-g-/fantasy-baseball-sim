@@ -362,7 +362,7 @@ const es = computed(() => [
 
             <!-- Save / Revert bar -->
             <div
-              v-if="panel.isMyTeam && !es[i].boLocked && es[i].hasBoChanges"
+              v-if="panel.isMyTeam && !es[i].boLocked && ((es[i].hasBoChanges && !es[i].boIsValid) || es[i].boError)"
               class="flex align-items-center justify-content-between mt-3"
             >
               <span v-if="es[i].boError" class="text-sm" style="color: var(--red-500);">{{ es[i].boError }}</span>
