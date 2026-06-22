@@ -144,6 +144,12 @@ export function useLineupPanel(
     { immediate: true },
   )
 
+  const spInOrder = computed(() => {
+    const spId = lineupRef.value?.sp?.player?.mlb_id
+    if (spId == null) return false
+    return boItems.value.some((e) => e.player_id === spId)
+  })
+
   const boDisplayItems = computed<DisplayEntry[]>(() => {
     if (isMyTeam.value && !boLocked.value) return boItems.value
     if (!lineupRef.value) return []
@@ -228,6 +234,24 @@ export function useLineupPanel(
     dragIndex.value = null; dragOverIndex.value = null
   }
 
+  function useSpInstead(idx: number) {
+    const lineup = lineupRef.value
+    if (!lineup?.sp?.player) return
+    const sp = lineup.sp.player
+    const { obp, slg } = playerOBPSLG(sp)
+    boItems.value[idx] = {
+      field_position: 'P',
+      eligible_positions: sortedEligiblePositions(sp),
+      player_id: sp.mlb_id,
+      full_name: sp.full_name,
+      mlb_team: sp.mlb_team,
+      bats: sp.bats,
+      obp,
+      slg,
+    }
+    hasBoChanges.value = true
+  }
+
   function setFieldPosition(idx: number, pos: string) {
     boItems.value[idx].field_position = pos
     hasBoChanges.value = true
@@ -263,8 +287,8 @@ export function useLineupPanel(
   return {
     spDeadlineIso, spLocked, boLocked, deadlineText, pitcherHand,
     showSpDialog, spSaving, spError, spCandidates, selectSP,
-    boDisplayItems, displayBench, hasBoChanges, boSaving, boError,
+    boDisplayItems, displayBench, spInOrder, hasBoChanges, boSaving, boError,
     dragIndex, dragOverIndex, onDragStart, onBenchDragStart, onDragEnd, onDragOver, onDrop,
-    setFieldPosition, revertBattingOrder, saveBattingOrder,
+    useSpInstead, setFieldPosition, revertBattingOrder, saveBattingOrder,
   }
 }

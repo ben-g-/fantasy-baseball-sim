@@ -173,6 +173,7 @@ const es = computed(() => [
     boLocked:        left.boLocked.value,
     boDisplayItems:  left.boDisplayItems.value,
     displayBench:    left.displayBench.value,
+    spInOrder:       left.spInOrder.value,
     hasBoChanges:    left.hasBoChanges.value,
     boError:         left.boError.value,
     boSaving:        left.boSaving.value,
@@ -188,6 +189,7 @@ const es = computed(() => [
     boLocked:        right.boLocked.value,
     boDisplayItems:  right.boDisplayItems.value,
     displayBench:    right.displayBench.value,
+    spInOrder:       right.spInOrder.value,
     hasBoChanges:    right.hasBoChanges.value,
     boError:         right.boError.value,
     boSaving:        right.boSaving.value,
@@ -324,6 +326,11 @@ const es = computed(() => [
                   <span v-if="item.obp != null" class="player-detail">
                     OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
                   </span>
+                  <button
+                    v-if="panel.isMyTeam && !es[i].boLocked && item.field_position === 'DH' && panel.lineup.sp?.player && !es[i].spInOrder"
+                    class="use-sp-btn"
+                    @click.stop="editors[i].useSpInstead(idx)"
+                  >Use SP instead</button>
                 </div>
                 <select
                   v-if="panel.isMyTeam && !es[i].boLocked && item.field_position !== 'P'"
@@ -592,6 +599,18 @@ const es = computed(() => [
   font-family: monospace;
   flex-shrink: 0;
 }
+
+.use-sp-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.65rem;
+  color: var(--p-primary-color, #6366f1);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.use-sp-btn:hover { text-decoration: underline; }
 
 .bo-pos-picker {
   font-size: 0.7rem;
