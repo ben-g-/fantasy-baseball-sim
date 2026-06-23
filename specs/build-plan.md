@@ -286,7 +286,35 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 9: Production Launch
+## Phase 9: AI Manager — Strategic In-Game Decisions
+
+**Goal:** The sim engine makes intelligent situational decisions rather than purely mechanical ones, producing more realistic and strategically interesting game outcomes.
+
+### Background
+
+The Phase 5 AI manager enforces hard caps and performs positional substitutions, but makes no strategic judgments. The decisions are: pull the pitcher when the cap triggers, and pinch-hit the bench player with the most PA. This phase replaces those stubs with context-aware logic.
+
+### Tasks
+
+**Pitcher management**
+- Pull the pitcher proactively when their ERA/WHIP is poor and the game situation warrants it (e.g. runners on base, close game), even before the hard cap is reached
+- Select the best available reliever for the situation: platoon advantage, freshness, role (closer vs. middle relief)
+- Track a pitch-count estimate (already computed per PA) and factor it into removal decisions alongside the BF cap
+
+**Pinch-hitting**
+- Select the pinch-hitter based on platoon matchup vs. the current pitcher, not just total PA
+- Suppress pinch-hitting in low-leverage situations (large lead or deficit in late innings) to conserve bench depth
+- Model pinch-hitting for defensive replacements: a fielder who has batted can stay in the game at a different position
+
+**Stolen base decisions**
+- Suppress steal attempts in low-leverage situations (e.g. large lead, 2 outs and a power hitter up)
+- Weight the attempt rate by the cost/benefit ratio: never attempt 3rd base steal with 2 outs
+
+**Validation:** Sim outcomes show measurably more realistic patterns vs. a fixed-decision baseline: fewer blown leads in late innings, platoon advantages reflected in box scores, reduced stolen base frequency in blowouts.
+
+---
+
+## Phase 10: Production Launch
 
 **Goal:** The app is ready for real users — hardened, monitored, and legally compliant.
 
@@ -339,7 +367,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - **Supabase Realtime for opponent lineup changes:** Subscribe to `lineups` / `lineup_batting_order` table changes so the opponent's SP and batting order edits appear live without a page refresh.
 - **Supabase Realtime for sim results:** Subscribe to `matchups` table changes so the Matchup Screen switches to post-sim mode automatically when `sim_status` becomes `sim_complete`, without a manual refresh.
 - **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be number of teammate plate appearances spent on first or second base with the subsequent base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
-- **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Refine once basic SB logic is stable.
+- **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Addressed in Phase 9 (AI Manager).
 
 ---
 
