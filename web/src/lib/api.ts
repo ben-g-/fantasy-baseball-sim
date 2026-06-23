@@ -140,3 +140,69 @@ export function patchBattingOrder(
     body: JSON.stringify({ batting_order: battingOrder }),
   })
 }
+
+// ── Sim results ───────────────────────────────────────────────────────────────
+
+export interface SimPlayerRef {
+  mlb_id: number
+  full_name: string
+}
+
+export interface SimBatterStat {
+  player: SimPlayerRef
+  batting_order_position: number
+  sequence_within_spot: number
+  positions: string[]
+  ab: number
+  r: number
+  h: number
+  doubles: number
+  triples: number
+  hr: number
+  rbi: number
+  bb: number
+  k: number
+  sb: number
+}
+
+export interface SimPitcherStat {
+  player: SimPlayerRef
+  pitching_sequence: number
+  outs_recorded: number
+  h: number
+  r: number
+  er: number
+  bb: number
+  k: number
+  hr: number
+}
+
+export interface SimPlayByPlayEvent {
+  inning: number
+  half: 'top' | 'bottom'
+  sequence_number: number
+  event_type: string
+  description: string | null
+  runs_scored: number
+  outs_before_play: number
+}
+
+export interface SimResults {
+  matchup_id: string
+  final_score: { home: number; road: number }
+  line_score: {
+    home: number[]
+    road: number[]
+    home_totals: { r: number; h: number; e: number }
+    road_totals: { r: number; h: number; e: number }
+  }
+  box_score: {
+    home: { batting: SimBatterStat[]; pitching: SimPitcherStat[] }
+    road: { batting: SimBatterStat[]; pitching: SimPitcherStat[] }
+  }
+  play_by_play: SimPlayByPlayEvent[]
+}
+
+export function getMatchupResults(id: string): Promise<SimResults> {
+  return apiFetch(`/matchups/${id}/results`)
+}

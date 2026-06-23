@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getMatchup, type Matchup, type Player } from '../lib/api'
+import { supabase } from '../lib/supabase'
+import { getMatchup, getMatchupResults, type Matchup, type SimResults, type Player } from '../lib/api'
 import { useLineupPanel, splitsStats } from '../composables/useLineupPanel'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
+import TabPanel from 'primevue/tabpanel'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,12 +19,16 @@ const matchupId = route.params.id as string
 const matchup = ref<Matchup | null>(null)
 const loading = ref(true)
 const errorMsg = ref('')
+const results = ref<SimResults | null>(null)
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
     matchup.value = await getMatchup(matchupId)
+    if (matchup.value.sim_status === 'sim_complete') {
+      results.value = await getMatchupResults(matchupId)
+    }
   } catch (e: unknown) {
     errorMsg.value = e instanceof Error ? e.message : 'Failed to load matchup'
   } finally {
@@ -26,7 +36,26 @@ async function load() {
   }
 }
 
-onMounted(load)
+let _realtimeCh: ReturnType<typeof supabase.channel> | null = null
+
+onMounted(() => {
+  load()
+  _realtimeCh = supabase
+    .channel(`matchup-sim-${matchupId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'matchups', filter: `id=eq.${matchupId}` },
+      (payload) => {
+        const newStatus = (payload.new as Record<string, unknown>)?.sim_status as string | undefined
+        if (newStatus === 'sim_complete' || newStatus === 'sim_error') load()
+      },
+    )
+    .subscribe()
+})
+
+onUnmounted(() => {
+  if (_realtimeCh) supabase.removeChannel(_realtimeCh)
+})
 
 // panels[0] = user's team (or home if no user team), panels[1] = opponent
 const panels = computed(() => {
@@ -143,6 +172,53 @@ const right = useLineupPanel(rightLineup, rightIsHome, rightIsMyTeam, deadlines,
 // Static function array (doesn't need reactivity — functions are stable references)
 const editors = [left, right]
 
+// ── Results helpers ──────────────────────────────────────────────────────────
+
+function formatIP(outs: number): string {
+  return `${Math.floor(outs / 3)}.${outs % 3}`
+}
+
+const lineScoreInnings = computed(() => {
+  if (!results.value) return 9
+  return Math.max(results.value.line_score.home.length, results.value.line_score.road.length, 9)
+})
+
+const pbpGroups = computed(() => {
+  if (!results.value) return []
+  const events = results.value.play_by_play
+    .filter((e) => e.description)
+    .slice()
+    .sort((a, b) => a.sequence_number - b.sequence_number)
+  type Group = { label: string; inning: number; half: string; runsScored: number; events: typeof events }
+  const groups: Group[] = []
+  for (const ev of events) {
+    const key = `${ev.inning}-${ev.half}`
+    let g = groups.find((x) => `${x.inning}-${x.half}` === key)
+    if (!g) {
+      const n = ev.inning
+      const sfx = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
+      g = { label: `${ev.half === 'top' ? 'Top' : 'Bot'} ${n}${sfx}`, inning: n, half: ev.half, runsScored: 0, events: [] }
+      groups.push(g)
+    }
+    g.events.push(ev)
+    g.runsScored += ev.runs_scored
+  }
+  return groups
+})
+
+function sortedBatting(rows: SimResults['box_score']['home']['batting']) {
+  return [...rows].sort((a, b) =>
+    a.batting_order_position !== b.batting_order_position
+      ? a.batting_order_position - b.batting_order_position
+      : a.sequence_within_spot - b.sequence_within_spot,
+  )
+}
+
+const boxScoreSides = computed(() => [
+  { key: 'road' as const, name: matchup.value?.road_team?.name ?? '' },
+  { key: 'home' as const, name: matchup.value?.home_team?.name ?? '' },
+])
+
 // Flat computed for template use — Vue only auto-unwraps top-level script-setup refs;
 // nested ComputedRef values inside objects must be accessed via .value, which this computed does.
 const es = computed(() => [
@@ -201,8 +277,136 @@ const es = computed(() => [
         <Tag :severity="statusSeverity(matchup.sim_status)" :value="statusLabel(matchup.sim_status)" />
       </div>
 
-      <!-- One card per team; subgrid aligns corresponding sections across both columns -->
-      <div v-if="panels.length === 2" class="two-col">
+      <!-- Post-sim results view -->
+      <template v-if="matchup.sim_status === 'sim_complete' && results">
+        <!-- Final score -->
+        <div class="sim-scoreboard mb-4">
+          <div class="sim-score-row" :class="{ 'sim-score-winner': results.final_score.road > results.final_score.home }">
+            <span class="sim-score-name">{{ matchup.road_team?.name }}</span>
+            <span class="sim-score-val">{{ results.final_score.road }}</span>
+          </div>
+          <div class="sim-score-row" :class="{ 'sim-score-winner': results.final_score.home > results.final_score.road }">
+            <span class="sim-score-name">{{ matchup.home_team?.name }}</span>
+            <span class="sim-score-val">{{ results.final_score.home }}</span>
+          </div>
+        </div>
+
+        <Tabs value="box">
+          <TabList>
+            <Tab value="box">Box Score</Tab>
+            <Tab value="pbp">Play-by-Play</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="box">
+              <!-- Line score -->
+              <div class="ls-wrap mb-5">
+                <table class="ls-table">
+                  <thead>
+                    <tr>
+                      <th class="ls-name"></th>
+                      <th v-for="n in lineScoreInnings" :key="n" class="ls-inn">{{ n }}</th>
+                      <th class="ls-sep ls-tot">R</th>
+                      <th class="ls-tot">H</th>
+                      <th class="ls-tot">E</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="ls-name">{{ matchup.road_team?.name }}</td>
+                      <td v-for="n in lineScoreInnings" :key="n" class="ls-inn">{{ results.line_score.road[n - 1] ?? '' }}</td>
+                      <td class="ls-sep ls-tot">{{ results.line_score.road_totals.r }}</td>
+                      <td class="ls-tot">{{ results.line_score.road_totals.h }}</td>
+                      <td class="ls-tot">{{ results.line_score.road_totals.e }}</td>
+                    </tr>
+                    <tr>
+                      <td class="ls-name">{{ matchup.home_team?.name }}</td>
+                      <td v-for="n in lineScoreInnings" :key="n" class="ls-inn">{{ results.line_score.home[n - 1] ?? '' }}</td>
+                      <td class="ls-sep ls-tot">{{ results.line_score.home_totals.r }}</td>
+                      <td class="ls-tot">{{ results.line_score.home_totals.h }}</td>
+                      <td class="ls-tot">{{ results.line_score.home_totals.e }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Box score: road then home -->
+              <template v-for="side in boxScoreSides" :key="side.key">
+                <h3 class="bs-team-name">{{ side.name }}</h3>
+
+                <p class="bs-section-label">Batting</p>
+                <div class="bs-wrap mb-3">
+                  <table class="bs-table">
+                    <thead>
+                      <tr>
+                        <th class="bs-l bs-slot-col">#</th>
+                        <th class="bs-l bs-player-col">Player</th>
+                        <th class="bs-l bs-pos-col">Pos</th>
+                        <th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th><th>HR</th><th>RBI</th><th>BB</th><th>K</th><th>SB</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="row in sortedBatting(results.box_score[side.key].batting)"
+                        :key="`${row.player.mlb_id}-${row.sequence_within_spot}`"
+                        :class="{ 'bs-tr-ph': row.sequence_within_spot > 1 }"
+                      >
+                        <td class="bs-l bs-slot-col">{{ row.sequence_within_spot === 1 ? row.batting_order_position : '' }}</td>
+                        <td class="bs-l">
+                          <span :class="{ 'bs-ph-indent': row.sequence_within_spot > 1 }">{{ row.player.full_name }}</span>
+                        </td>
+                        <td class="bs-l bs-pos-col">{{ row.positions.join('-') }}</td>
+                        <td>{{ row.ab }}</td><td>{{ row.r }}</td><td>{{ row.h }}</td>
+                        <td>{{ row.doubles }}</td><td>{{ row.triples }}</td><td>{{ row.hr }}</td>
+                        <td>{{ row.rbi }}</td><td>{{ row.bb }}</td><td>{{ row.k }}</td><td>{{ row.sb }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p class="bs-section-label">Pitching</p>
+                <div class="bs-wrap mb-5">
+                  <table class="bs-table">
+                    <thead>
+                      <tr>
+                        <th class="bs-l bs-player-col">Pitcher</th>
+                        <th>IP</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="row in [...results.box_score[side.key].pitching].sort((a, b) => a.pitching_sequence - b.pitching_sequence)"
+                        :key="row.player.mlb_id"
+                      >
+                        <td class="bs-l">{{ row.player.full_name }}</td>
+                        <td>{{ formatIP(row.outs_recorded) }}</td>
+                        <td>{{ row.h }}</td><td>{{ row.r }}</td><td>{{ row.er }}</td>
+                        <td>{{ row.bb }}</td><td>{{ row.k }}</td><td>{{ row.hr }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+            </TabPanel>
+
+            <TabPanel value="pbp">
+              <div v-for="group in pbpGroups" :key="`${group.inning}-${group.half}`" class="pbp-group">
+                <div class="pbp-half-hdr">
+                  <span>{{ group.label }}</span>
+                  <span v-if="group.runsScored > 0" class="pbp-run-chip">
+                    {{ group.runsScored }} run{{ group.runsScored !== 1 ? 's' : '' }}
+                  </span>
+                </div>
+                <div v-for="ev in group.events" :key="ev.sequence_number" class="pbp-ev">{{ ev.description }}</div>
+              </div>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </template>
+
+      <!-- Pre/during-sim lineup view -->
+      <template v-else>
+        <!-- One card per team; subgrid aligns corresponding sections across both columns -->
+        <div v-if="panels.length === 2" class="two-col">
 
         <template v-for="(panel, i) in panels" :key="`team-${i}`">
 
@@ -372,7 +576,8 @@ const es = computed(() => [
 
         </template>
 
-      </div>
+        </div>
+      </template>
 
     </template>
   </div>
@@ -621,5 +826,171 @@ const es = computed(() => [
   outline: 2px solid var(--p-primary-color, #6366f1);
   outline-offset: 1px;
   border-color: transparent;
+}
+
+/* ── Post-sim results ────────────────────────────────────────────────────────── */
+
+.sim-scoreboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+  max-width: 28rem;
+}
+
+.sim-score-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.sim-score-name {
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.sim-score-val {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sim-score-winner .sim-score-name { font-weight: 700; }
+.sim-score-winner .sim-score-val  { color: var(--p-primary-color, #6366f1); }
+
+/* ── Line score ────────────────────────────────────────────────────────────── */
+
+.ls-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--p-surface-200);
+  border-radius: 6px;
+}
+
+.ls-table {
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.ls-table th,
+.ls-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: center;
+}
+
+.ls-table th {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--p-surface-400);
+}
+
+.ls-table tbody tr:first-child td {
+  border-bottom: 1px solid var(--p-surface-200);
+}
+
+.ls-name {
+  text-align: left !important;
+  font-weight: 500;
+  padding-right: 1.5rem !important;
+  min-width: 8rem;
+}
+
+.ls-inn { min-width: 1.8rem; }
+
+.ls-sep { border-left: 1px solid var(--p-surface-300) !important; }
+
+.ls-tot { font-weight: 600; }
+
+/* ── Box score tables ───────────────────────────────────────────────────────── */
+
+.bs-team-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.25rem;
+}
+
+.bs-section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--p-surface-400);
+  margin: 0 0 0.35rem;
+}
+
+.bs-wrap { overflow-x: auto; }
+
+.bs-table {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.bs-table th {
+  text-align: right;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--p-surface-400);
+  border-bottom: 1px solid var(--p-surface-200);
+}
+
+.bs-table td {
+  text-align: right;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--p-surface-100);
+}
+
+.bs-l { text-align: left !important; }
+
+.bs-slot-col  { width: 1.8rem; color: var(--p-surface-400); }
+.bs-player-col { min-width: 10rem; }
+.bs-pos-col   { min-width: 3rem; color: var(--p-surface-500); font-size: 0.72rem; }
+
+.bs-tr-ph td  { color: var(--p-surface-500); font-size: 0.75rem; }
+
+.bs-ph-indent { padding-left: 0.75rem; display: inline-block; }
+
+/* ── Play-by-play ───────────────────────────────────────────────────────────── */
+
+.pbp-group { margin-bottom: 1.25rem; }
+
+.pbp-half-hdr {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--p-surface-400);
+  margin-bottom: 0.35rem;
+}
+
+.pbp-run-chip {
+  background: var(--p-primary-color, #6366f1);
+  color: #fff;
+  font-size: 0.62rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 99px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pbp-ev {
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--p-surface-100);
 }
 </style>
