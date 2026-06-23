@@ -37,26 +37,7 @@ const panels = computed(() => {
   return road.isMyTeam ? [road, home] : [home, road]
 })
 
-const title = computed(() => {
-  if (!matchup.value) return ''
-  const m = matchup.value
-  const isMyTeamHome = m.my_team_id === m.home_team?.id
-  const myName  = isMyTeamHome ? m.home_team?.name : m.road_team?.name
-  const oppName = isMyTeamHome ? m.road_team?.name : m.home_team?.name
-  return `${myName ?? '—'} vs. ${oppName ?? '—'}`
-})
 
-const deadlineItems = computed(() => {
-  if (!matchup.value) return []
-  const { deadlines } = matchup.value
-  return [
-    { label: 'Road SP',       iso: deadlines.road_sp },
-    { label: 'Home SP',       iso: deadlines.home_sp },
-    { label: 'Batting order', iso: deadlines.batting_order },
-  ]
-})
-
-function deadlinePast(iso: string) { return new Date(iso) < new Date() }
 
 function deadlineText(iso: string): string {
   if (!iso) return ''
@@ -215,43 +196,29 @@ const es = computed(() => [
 
     <template v-else-if="matchup">
       <!-- Header -->
-      <div class="flex align-items-start justify-content-between mb-2 gap-3" style="flex-wrap: wrap;">
-        <div>
-          <h1 class="m-0 text-2xl font-bold">{{ title }}</h1>
-          <p class="mt-1 mb-0 text-color-secondary text-sm">
-            Week {{ matchup.week_number }} · {{ formatSimDate(matchup.sim_scheduled_at) }}
-          </p>
-        </div>
+      <div class="flex align-items-center justify-content-between mb-4 gap-3">
+        <p class="m-0 text-sm text-color-secondary">Week {{ matchup.week_number }} · {{ formatSimDate(matchup.sim_scheduled_at) }}</p>
         <Tag :severity="statusSeverity(matchup.sim_status)" :value="statusLabel(matchup.sim_status)" />
-      </div>
-
-      <!-- Deadlines strip -->
-      <div class="flex gap-4 mb-4" style="flex-wrap: wrap;">
-        <div v-for="d in deadlineItems" :key="d.label" class="text-sm">
-          <span class="text-color-secondary">{{ d.label }}: </span>
-          <span :style="deadlinePast(d.iso) ? 'color: var(--red-400);' : 'color: var(--green-500);'">
-            {{ deadlineText(d.iso) }}
-          </span>
-        </div>
       </div>
 
       <!-- One card per team; subgrid aligns corresponding sections across both columns -->
       <div v-if="panels.length === 2" class="two-col">
 
-        <div v-for="(panel, i) in panels" :key="`team-${i}`"
-             class="surface-card border-round team-card"
+        <template v-for="(panel, i) in panels" :key="`team-${i}`">
+
+        <!-- Team header (above card) -->
+        <div class="team-col-header" :style="`grid-column: ${i + 1}; grid-row: 1`">
+          <div class="flex align-items-center gap-2">
+            <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
+            <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
+            <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
+          </div>
+        </div>
+
+        <div class="surface-card border-round team-card"
              :style="`grid-column: ${i + 1}`">
 
-          <!-- Section 1: Header -->
-          <div class="tc-section">
-            <div class="flex align-items-center gap-2">
-              <h2 class="m-0 text-lg font-semibold">{{ panel.teamName }}</h2>
-              <Tag :value="panel.isHome ? 'Home' : 'Road'" severity="secondary" style="font-size: 0.7rem;" />
-              <Tag v-if="panel.isMyTeam" value="You" severity="info" style="font-size: 0.7rem;" />
-            </div>
-          </div>
-
-          <!-- Section 2: Starting Pitcher -->
+          <!-- Section 1: Starting Pitcher -->
           <div class="tc-section tc-sp">
             <div class="sp-header mb-2">
               <span class="section-label">Starting Pitcher</span>
@@ -403,6 +370,8 @@ const es = computed(() => [
 
         </div>
 
+        </template>
+
       </div>
 
     </template>
@@ -410,8 +379,8 @@ const es = computed(() => [
 </template>
 
 <style scoped>
-/* 5 named row tracks — one per section. team-card subgrid cells align to these tracks,
-   so corresponding sections (sp, bullpen, batting order, bench) are always the same height. */
+/* Row 1 = team headers (outside cards); rows 2–5 = the 4 card sections.
+   Subgrid aligns corresponding sections across both columns. */
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -419,9 +388,13 @@ const es = computed(() => [
   column-gap: 1.5rem;
 }
 
-/* Span all 5 rows; subgrid means the card's 5 direct children use the parent's row tracks */
+.team-col-header {
+  padding-bottom: 0.5rem;
+}
+
+/* Span rows 2–5; subgrid means the card's 4 direct children use the parent's row tracks */
 .team-card {
-  grid-row: 1 / 6;
+  grid-row: 2 / 6;
   display: grid;
   grid-template-rows: subgrid;
   overflow: hidden; /* clips content to border-round radius */
@@ -453,8 +426,8 @@ const es = computed(() => [
   padding: 0.75rem;
 }
 
-/* Divider only between bullpen (child 3) and batting order (child 4) */
-.team-card > .tc-section:nth-child(4) {
+/* Divider only between pitchers (child 2) and batting order (child 3) */
+.team-card > .tc-section:nth-child(3) {
   border-top: 1px solid var(--p-surface-200);
 }
 
