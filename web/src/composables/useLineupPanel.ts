@@ -52,11 +52,30 @@ export function useLineupPanel(
     if (!deadlinesRef.value) return ''
     return isHome.value ? deadlinesRef.value.home_sp : deadlinesRef.value.road_sp
   })
-  const spLocked = computed(() => spDeadlineIso.value !== '' && new Date() > new Date(spDeadlineIso.value))
+  const now = ref(Date.now())
+  const spLocked = computed(() => spDeadlineIso.value !== '' && now.value > new Date(spDeadlineIso.value).getTime())
   const boLocked = computed(() => {
     const bo = deadlinesRef.value?.batting_order
-    return bo != null && new Date() > new Date(bo)
+    return bo != null && now.value > new Date(bo).getTime()
   })
+
+  const deadlineTimers: ReturnType<typeof setTimeout>[] = []
+  function scheduleTick(isoString: string | undefined) {
+    if (!isoString) return
+    const ms = new Date(isoString).getTime() - Date.now()
+    if (ms <= 0) return
+    deadlineTimers.push(setTimeout(() => { now.value = Date.now() }, ms))
+  }
+  watch(
+    [spDeadlineIso, () => deadlinesRef.value?.batting_order],
+    ([spIso, boIso]) => {
+      deadlineTimers.forEach(clearTimeout)
+      deadlineTimers.length = 0
+      scheduleTick(spIso)
+      scheduleTick(boIso)
+    },
+    { immediate: true },
+  )
 
   function deadlineText(iso: string): string {
     if (!iso) return ''
@@ -343,7 +362,10 @@ export function useLineupPanel(
       }, 500)
     }
   })
-  onUnmounted(() => { if (saveTimer !== null) clearTimeout(saveTimer) })
+  onUnmounted(() => {
+    if (saveTimer !== null) clearTimeout(saveTimer)
+    deadlineTimers.forEach(clearTimeout)
+  })
 
   async function saveBattingOrder() {
     if (!lineupRef.value) return
