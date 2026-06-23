@@ -337,6 +337,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - **SP ineligibility verification:** Confirm that a pitcher who started (or is going to start — keeping in mind that the SP locks before the previous week's sim) in one of the two preceding weeks' sims appears with `is_sp_eligible_this_week: false` in the SP candidate list. Requires a matchup where the SP deadline has not passed and at least one pitcher has a recent start on record in the database.
 - **Home screen "action required" indicator:** Badge on matchup cards when a deadline is approaching and the user has not yet submitted their SP or batting order.
 - **Supabase Realtime for opponent lineup changes:** Subscribe to `lineups` / `lineup_batting_order` table changes so the opponent's SP and batting order edits appear live without a page refresh.
+- **Supabase Realtime for sim results:** Subscribe to `matchups` table changes so the Matchup Screen switches to post-sim mode automatically when `sim_status` becomes `sim_complete`, without a manual refresh.
 
 ---
 
