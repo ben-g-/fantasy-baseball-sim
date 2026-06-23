@@ -338,7 +338,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - **Home screen "action required" indicator:** Badge on matchup cards when a deadline is approaching and the user has not yet submitted their SP or batting order.
 - **Supabase Realtime for opponent lineup changes:** Subscribe to `lineups` / `lineup_batting_order` table changes so the opponent's SP and batting order edits appear live without a page refresh.
 - **Supabase Realtime for sim results:** Subscribe to `matchups` table changes so the Matchup Screen switches to post-sim mode automatically when `sim_status` becomes `sim_complete`, without a manual refresh.
-- **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be actual times-on-base with second base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
+- **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be number of teammate plate appearances spent on first or second base with the subsequent base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
 - **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Refine once basic SB logic is stable.
 
 ---
