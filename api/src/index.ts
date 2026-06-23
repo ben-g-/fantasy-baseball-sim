@@ -5,6 +5,7 @@ import { meRouter } from './routes/me';
 import { matchupsRouter } from './routes/matchups';
 import { lineupsRouter } from './routes/lineups';
 import { devRouter } from './routes/dev';
+import { startSimDispatcher } from './lib/simDispatcher';
 
 const app = express();
 const port = process.env.PORT ?? 3000;
@@ -21,4 +22,5 @@ if (process.env.DEV_ENDPOINTS_ENABLED === 'true') {
 
 app.listen(port, () => {
   console.log(`API server listening on port ${port}`);
+  startSimDispatcher();
 });

@@ -4,13 +4,18 @@ services:
     ports:
       - "3000:3000"
     env_file: ./api/.env
+    environment:
+      - SIM_SERVICE_URL=http://sim:8000
     volumes:
       - ./api:/app
       - /app/node_modules
+    depends_on:
+      - sim
 
   sim:
     build: ./sim
     ports:
       - "8000:8000"
+    env_file: ./sim/.env
     volumes:
       - ./sim:/app

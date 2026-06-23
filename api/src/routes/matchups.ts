@@ -234,6 +234,129 @@ matchupsRouter.get('/matchups/:id', requireAuth, async (req: Request, res: Respo
   });
 });
 
+// ── GET /matchups/:id/results ─────────────────────────────────────────────────
+
+matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, res: Response) => {
+  const { userId } = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  const { data: matchup } = await supabase
+    .from('matchups')
+    .select('id, league_id, sim_status, home_team_id, road_team_id')
+    .eq('id', id)
+    .single();
+
+  if (!matchup) {
+    res.status(404).json(apiError('not_found', 'Matchup not found'));
+    return;
+  }
+
+  // Verify league membership
+  const { data: userTeam } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('league_id', matchup.league_id)
+    .eq('manager_id', userId)
+    .maybeSingle();
+
+  if (!userTeam) {
+    res.status(404).json(apiError('not_found', 'Matchup not found'));
+    return;
+  }
+
+  if (matchup.sim_status !== 'sim_complete') {
+    res.status(409).json(apiError('conflict', 'Sim has not yet completed'));
+    return;
+  }
+
+  const [lineScoreRes, batterStatsRes, batterPositionsRes, pitcherStatsRes, eventsRes] =
+    await Promise.all([
+      supabase.from('sim_line_score').select('team_id, inning, runs, hits, errors').eq('matchup_id', id).order('inning'),
+      supabase.from('sim_batter_stats').select('team_id, player_id, batting_order_position, sequence_within_spot, ab, r, h, doubles, triples, hr, rbi, bb, k, sb').eq('matchup_id', id).order('batting_order_position'),
+      supabase.from('sim_batter_positions').select('player_id, position_sequence, field_position').eq('matchup_id', id).order('position_sequence'),
+      supabase.from('sim_pitcher_stats').select('team_id, player_id, pitching_sequence, outs_recorded, h, r, er, bb, k, hr').eq('matchup_id', id).order('pitching_sequence'),
+      supabase.from('sim_events').select('inning, half, sequence_number, event_type, description, runs_scored, outs_before_play').eq('matchup_id', id).order('sequence_number'),
+    ]);
+
+  // Collect all player IDs and fetch names
+  const allPlayerIds = new Set<number>();
+  for (const r of batterStatsRes.data ?? []) allPlayerIds.add(r.player_id);
+  for (const r of pitcherStatsRes.data ?? []) allPlayerIds.add(r.player_id);
+
+  const { data: playerRows } = await supabase
+    .from('players')
+    .select('mlb_id, full_name')
+    .in('mlb_id', [...allPlayerIds]);
+  const playerNames: Record<number, string> = Object.fromEntries(
+    (playerRows ?? []).map((p) => [p.mlb_id, p.full_name]),
+  );
+
+  const positionsMap: Record<number, string[]> = {};
+  for (const r of batterPositionsRes.data ?? []) {
+    (positionsMap[r.player_id] ??= []).push(r.field_position);
+  }
+
+  function buildBatting(teamId: string) {
+    return (batterStatsRes.data ?? [])
+      .filter((r) => r.team_id === teamId)
+      .map((r) => ({
+        player: { mlb_id: r.player_id, full_name: playerNames[r.player_id] ?? String(r.player_id) },
+        batting_order_position: r.batting_order_position,
+        sequence_within_spot: r.sequence_within_spot,
+        positions: positionsMap[r.player_id] ?? [],
+        ab: r.ab, r: r.r, h: r.h, doubles: r.doubles, triples: r.triples,
+        hr: r.hr, rbi: r.rbi, bb: r.bb, k: r.k, sb: r.sb,
+      }));
+  }
+
+  function buildPitching(teamId: string) {
+    return (pitcherStatsRes.data ?? [])
+      .filter((r) => r.team_id === teamId)
+      .map((r) => ({
+        player: { mlb_id: r.player_id, full_name: playerNames[r.player_id] ?? String(r.player_id) },
+        pitching_sequence: r.pitching_sequence,
+        outs_recorded: r.outs_recorded,
+        h: r.h, r: r.r, er: r.er, bb: r.bb, k: r.k, hr: r.hr,
+      }));
+  }
+
+  function buildLineScore(teamId: string) {
+    const rows = (lineScoreRes.data ?? []).filter((r) => r.team_id === teamId);
+    const maxInning = rows.reduce((m, r) => Math.max(m, r.inning), 0);
+    const byInning = Object.fromEntries(rows.map((r) => [r.inning, r]));
+    const runsByInning = Array.from({ length: maxInning }, (_, i) => byInning[i + 1]?.runs ?? 0);
+    const totals = rows.reduce((acc, r) => ({ r: acc.r + r.runs, h: acc.h + r.hits, e: acc.e + r.errors }), { r: 0, h: 0, e: 0 });
+    return { runs: runsByInning, totals };
+  }
+
+  const homeLS = buildLineScore(matchup.home_team_id);
+  const roadLS = buildLineScore(matchup.road_team_id);
+
+  res.json({
+    matchup_id: id,
+    final_score: { home: homeLS.totals.r, road: roadLS.totals.r },
+    line_score: {
+      home: homeLS.runs,
+      road: roadLS.runs,
+      home_totals: homeLS.totals,
+      road_totals: roadLS.totals,
+    },
+    box_score: {
+      home: { batting: buildBatting(matchup.home_team_id), pitching: buildPitching(matchup.home_team_id) },
+      road: { batting: buildBatting(matchup.road_team_id), pitching: buildPitching(matchup.road_team_id) },
+    },
+    play_by_play: (eventsRes.data ?? []).map((e) => ({
+      inning: e.inning,
+      half: e.half,
+      sequence_number: e.sequence_number,
+      event_type: e.event_type,
+      description: e.description,
+      runs_scored: e.runs_scored,
+      outs_before_play: e.outs_before_play,
+    })),
+  });
+});
+
 // ── GET /teams/:id/matchups ───────────────────────────────────────────────────
 
 matchupsRouter.get('/teams/:id/matchups', requireAuth, async (req: Request, res: Response) => {
