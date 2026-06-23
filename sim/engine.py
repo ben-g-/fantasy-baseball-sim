@@ -95,6 +95,7 @@ class BatterSlot:
     field_position: str
     bats: str
     stats: dict | None
+    dh_eligible: bool = True  # has at least one non-P eligible position
     pa_used: int = 0
     ph_player_id: Optional[int] = None  # set if pinch-hit substitution made
 
@@ -116,6 +117,7 @@ class TeamState:
     bullpen: list[PitcherSlot]  # available relievers (all except SP)
     current_pitcher: PitcherSlot
     current_batting_spot: int = 0  # index into batting_order (0-8)
+    bench: list[BatterSlot] = field(default_factory=list)
 
     # Tracking for output
     events: list[dict] = field(default_factory=list)
@@ -123,6 +125,7 @@ class TeamState:
     pitcher_stats: dict[int, dict] = field(default_factory=dict)
     batter_positions: dict[int, list[str]] = field(default_factory=dict)
     line_score: dict[int, dict] = field(default_factory=dict)  # inning -> {r,h,e}
+    _slot_batter_count: dict[int, int] = field(default_factory=dict, repr=False)
 
     def next_batter(self) -> BatterSlot:
         slot = self.batting_order[self.current_batting_spot]
@@ -139,7 +142,14 @@ class TeamState:
         p = self.current_pitcher
         bf_cap = pitcher_bf_cap(p.stats)
         pitch_cap = pitcher_pitch_cap(p.stats)
-        return (bf_cap > 0 and p.bf_used >= bf_cap) or (pitch_cap > 0 and p.pitches_used >= pitch_cap)
+        return bf_cap > 0 and p.bf_used >= bf_cap and pitch_cap > 0 and p.pitches_used >= pitch_cap
+
+    def sp_batting_slot_index(self) -> int | None:
+        """Index of the P-position batting slot, if the pitcher is batting for himself."""
+        for i, slot in enumerate(self.batting_order):
+            if slot.field_position == 'P':
+                return i
+        return None
 
     def change_pitcher(self) -> PitcherSlot | None:
         reliever = self._get_reliever()
@@ -167,9 +177,12 @@ class TeamState:
                       rbi: int = 0, bb: int = 0, k: int = 0, sb: int = 0) -> None:
         pid = batter_slot.ph_player_id or batter_slot.player_id
         if pid not in self.batter_stats:
+            pos = batter_slot.batting_position
+            seq = self._slot_batter_count.get(pos, 0) + 1
+            self._slot_batter_count[pos] = seq
             self.batter_stats[pid] = {
-                'batting_order_position': batter_slot.batting_position,
-                'sequence_within_spot': 1,
+                'batting_order_position': pos,
+                'sequence_within_spot': seq,
                 'ab': 0, 'r': 0, 'h': 0, 'doubles': 0, 'triples': 0,
                 'hr': 0, 'rbi': 0, 'bb': 0, 'k': 0, 'sb': 0,
             }
@@ -186,7 +199,26 @@ class TeamState:
         bs['sb'] += sb
 
 
-def _build_team_state(lineup: dict, player_info: dict, batter_stats_map: dict, pitcher_stats_map: dict) -> TeamState:
+def _is_dh_eligible(player_id: int, player_info: dict) -> bool:
+    """True if the player has at least one non-P eligible position."""
+    positions = player_info.get(player_id, {}).get('eligible_positions', [])
+    return any(p != 'P' for p in positions)
+
+
+def _best_bench_player(bench: list[BatterSlot]) -> BatterSlot | None:
+    """Pick the bench player with the most pre-lock PA (most active batter)."""
+    if not bench:
+        return None
+    return max(bench, key=lambda s: s.stats.get('pa', 0) if s.stats else 0)
+
+
+def _build_team_state(
+    lineup: dict,
+    player_info: dict,
+    batter_stats_map: dict,
+    pitcher_stats_map: dict,
+    bench_player_ids: list[int],
+) -> TeamState:
     sp_id = lineup['sp_player_id']
     sp_info = player_info.get(sp_id, {})
     sp_stats = pitcher_stats_map.get(sp_id)
@@ -207,12 +239,11 @@ def _build_team_state(lineup: dict, player_info: dict, batter_stats_map: dict, p
             field_position=entry['field_position'],
             bats=pinfo.get('bats', 'R'),
             stats=batter_stats_map.get(pid),
+            dh_eligible=_is_dh_eligible(pid, player_info),
         )
         batting_order.append(slot)
 
-    # Build bullpen from batting order pitchers (field_position == 'P') + extra pitchers
-    # In this sim, no true bullpen data is stored per-lineup; we use pitchers in the batting order
-    # who are not the SP, plus any available reliever slots.
+    # Build bullpen: pitchers in the batting order who are not the SP
     bullpen: list[PitcherSlot] = []
     for slot in batting_order:
         if slot.field_position == 'P' and slot.player_id != sp_id:
@@ -223,11 +254,31 @@ def _build_team_state(lineup: dict, player_info: dict, batter_stats_map: dict, p
                 stats=pitcher_stats_map.get(slot.player_id),
             ))
 
+    # Build bench: roster players not in the batting order, excluding pure pitchers
+    in_order = {slot.player_id for slot in batting_order} | {sp_id}
+    bench: list[BatterSlot] = []
+    for pid in bench_player_ids:
+        if pid in in_order:
+            continue
+        pinfo = player_info.get(pid, {})
+        eligible = pinfo.get('eligible_positions', [])
+        if not any(p != 'P' for p in eligible):
+            continue  # pure pitchers don't pinch-hit
+        bench.append(BatterSlot(
+            batting_position=0,  # assigned at substitution time
+            player_id=pid,
+            field_position='',
+            bats=pinfo.get('bats', 'R'),
+            stats=batter_stats_map.get(pid),
+            dh_eligible=True,
+        ))
+
     return TeamState(
         team_id=lineup['team_id'],
         batting_order=batting_order,
         bullpen=bullpen,
         current_pitcher=sp_slot,
+        bench=bench,
     )
 
 
@@ -268,6 +319,8 @@ def simulate_game(
     batter_stats_map: dict,
     pitcher_stats_map: dict,
     league: LeagueAverages,
+    home_bench_ids: list[int] | None = None,
+    road_bench_ids: list[int] | None = None,
     seed: int | None = None,
 ) -> dict:
     """
@@ -275,8 +328,8 @@ def simulate_game(
     """
     rng = random.Random(seed)
 
-    home = _build_team_state(home_lineup, player_info, batter_stats_map, pitcher_stats_map)
-    road = _build_team_state(road_lineup, player_info, batter_stats_map, pitcher_stats_map)
+    home = _build_team_state(home_lineup, player_info, batter_stats_map, pitcher_stats_map, home_bench_ids or [])
+    road = _build_team_state(road_lineup, player_info, batter_stats_map, pitcher_stats_map, road_bench_ids or [])
 
     all_events: list[dict] = []
     all_runner_outcomes: list[dict] = []
@@ -324,13 +377,52 @@ def simulate_game(
             # Pinch-hit if batter is at PA cap
             cap = batter_pa_cap(batter_slot.stats)
             if batter_slot.pa_used >= cap and cap != 999:
-                # Try to find a bench/bullpen replacement (simplified: skip if no one available)
-                pass  # In this sim we allow them to exceed cap rather than complex PH logic
+                sub = _best_bench_player(batting_team.bench)
+                if sub is not None:
+                    slot_idx = (batting_team.current_batting_spot - 1) % 9
+                    batting_team.bench.remove(sub)
+                    sub.batting_position = batter_slot.batting_position
+                    batting_team.batting_order[slot_idx] = sub
+                    out_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
+                    sub_name = player_info.get(sub.player_id, {}).get('full_name', 'Unknown')
+                    seq += 1
+                    all_events.append({
+                        'id': str(uuid.uuid4()),
+                        'matchup_id': matchup_id,
+                        'inning': inning,
+                        'half': half,
+                        'sequence_number': seq,
+                        'event_type': 'substitution',
+                        'pitcher_player_id': None,
+                        'description': f'{sub_name} pinch hits for {out_name}',
+                        'runs_scored': 0,
+                        'outs_before_play': outs,
+                    })
+                    batter_slot = sub
 
             # Pitcher change check
             if fielding_team.should_change_pitcher():
+                old_pitcher_id = fielding_team.current_pitcher.player_id
                 new_p = fielding_team.change_pitcher()
                 if new_p:
+                    # Handle the batting-order slot that was occupied by the outgoing pitcher
+                    p_slot_idx = fielding_team.sp_batting_slot_index()
+                    if p_slot_idx is not None:
+                        if _is_dh_eligible(old_pitcher_id, player_info):
+                            # Two-way player: stays in lineup as DH
+                            fielding_team.batting_order[p_slot_idx].field_position = 'DH'
+                        else:
+                            # Pure pitcher: incoming reliever takes the P batting slot
+                            old_slot = fielding_team.batting_order[p_slot_idx]
+                            new_p_info = player_info.get(new_p.player_id, {})
+                            fielding_team.batting_order[p_slot_idx] = BatterSlot(
+                                batting_position=old_slot.batting_position,
+                                player_id=new_p.player_id,
+                                field_position='P',
+                                bats=new_p_info.get('bats', 'R'),
+                                stats=batter_stats_map.get(new_p.player_id),
+                                dh_eligible=_is_dh_eligible(new_p.player_id, player_info),
+                            )
                     seq += 1
                     all_events.append({
                         'id': str(uuid.uuid4()),

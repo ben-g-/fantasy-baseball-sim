@@ -91,7 +91,29 @@ def fetch_player_info(player_ids: list[int]) -> dict[int, dict]:
         .in_('mlb_id', player_ids)
         .execute()
     )
-    return {r['mlb_id']: r for r in rows.data}
+    info = {r['mlb_id']: {**r, 'eligible_positions': []} for r in rows.data}
+    pos_rows = (
+        sb.table('player_positions')
+        .select('player_id, position')
+        .in_('player_id', player_ids)
+        .execute()
+    )
+    for r in pos_rows.data:
+        if r['player_id'] in info:
+            info[r['player_id']]['eligible_positions'].append(r['position'])
+    return info
+
+
+def fetch_roster_player_ids(team_id: str, league_id: str) -> list[int]:
+    sb = get_client()
+    rows = (
+        sb.table('roster_players')
+        .select('player_id')
+        .eq('team_id', team_id)
+        .eq('league_id', league_id)
+        .execute()
+    )
+    return [r['player_id'] for r in rows.data]
 
 
 def fetch_league_batter_averages(sim_date: str) -> dict | None:

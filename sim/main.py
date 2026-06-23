@@ -38,16 +38,20 @@ def run_sim(request: SimRequest):
         home_lineup = db.fetch_lineup(matchup_id, matchup['home_team_id'])
         road_lineup = db.fetch_lineup(matchup_id, matchup['road_team_id'])
 
-        all_player_ids = list({
-            home_lineup['sp_player_id'],
-            road_lineup['sp_player_id'],
-            *[e['player_id'] for e in home_lineup['batting_order']],
-            *[e['player_id'] for e in road_lineup['batting_order']],
-        })
+        league_id = matchup['league_id']
+        home_roster_ids = db.fetch_roster_player_ids(matchup['home_team_id'], league_id)
+        road_roster_ids = db.fetch_roster_player_ids(matchup['road_team_id'], league_id)
 
-        batter_ids = [e['player_id'] for e in home_lineup['batting_order'] + road_lineup['batting_order']]
+        batting_order_ids = [e['player_id'] for e in home_lineup['batting_order'] + road_lineup['batting_order']]
         pitcher_ids = [home_lineup['sp_player_id'], road_lineup['sp_player_id']]
+        all_player_ids = list({*home_roster_ids, *road_roster_ids})
 
+        # Bench = roster players not in the batting order and not the SP
+        in_lineup = set(batting_order_ids) | set(pitcher_ids)
+        home_bench_ids = [pid for pid in home_roster_ids if pid not in in_lineup]
+        road_bench_ids = [pid for pid in road_roster_ids if pid not in in_lineup]
+
+        batter_ids = list({*batting_order_ids, *home_bench_ids, *road_bench_ids})
         batter_stats_map = db.fetch_batter_stats(batter_ids, sim_date)
         pitcher_stats_map = db.fetch_pitcher_stats(pitcher_ids, sim_date)
         player_info = db.fetch_player_info(all_player_ids)
@@ -68,6 +72,8 @@ def run_sim(request: SimRequest):
             batter_stats_map=batter_stats_map,
             pitcher_stats_map=pitcher_stats_map,
             league=league,
+            home_bench_ids=home_bench_ids,
+            road_bench_ids=road_bench_ids,
         )
 
         db.write_results(
