@@ -170,6 +170,7 @@ const es = computed(() => [
     spDeadlineIso:   left.spDeadlineIso.value,
     spCandidateIds:  new Set(left.spCandidates.value.map((p) => p.mlb_id)),
     spSaving:        left.spSaving.value,
+    spError:         left.spError.value,
     boLocked:        left.boLocked.value,
     boDisplayItems:       left.boDisplayItems.value,
     displayPitchingStaff: left.displayPitchingStaff.value,
