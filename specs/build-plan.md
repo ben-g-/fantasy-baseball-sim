@@ -331,6 +331,13 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
+## Deferred (Near-term)
+
+- **Lock-state timer unit test:** Test `useLineupPanel` with `vi.useFakeTimers()` — confirm `spLocked`/`boLocked` are false before the deadline and flip to true when the clock advances past it, without a page reload.
+- **SP ineligibility verification:** Confirm that a pitcher who started in one of the two preceding weeks' sims appears with `is_sp_eligible_this_week: false` in the SP candidate list. Requires a matchup where the SP deadline has not passed and at least one pitcher has a recent start on record in the database.
+
+---
+
 ## Deferred (Post-MVP)
 
 - Waiver wire and trade flows
