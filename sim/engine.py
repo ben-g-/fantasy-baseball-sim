@@ -42,6 +42,7 @@ def _advance_runners(hit_type: str, runners: dict[int, int], outs: int) -> tuple
 
     if hit_type == 'triple':
         runs = sum(1 for v in runners.values() if v)
+        new_runners[3] = -1  # placeholder for batter
         return new_runners, runs
 
     if hit_type == 'double':
@@ -289,7 +290,9 @@ def _simulate_pa(
     rng: random.Random,
 ) -> str:
     """Resolve a plate appearance. Returns outcome string."""
-    # If batter is at their PA cap, they can no longer bat — caller handles substitution
+    # Pure pitcher in the P slot: auto-out, no stats needed
+    if batter_slot.field_position == 'P' and not batter_slot.dh_eligible:
+        return rng.choices(['k', 'go', 'fo'], weights=[0.20, 0.45, 0.35], k=1)[0]
     probs = pa_probabilities(
         batter_slot.stats,
         pitcher_slot.stats,
@@ -374,9 +377,10 @@ def simulate_game(
 
             batter_slot = batting_team.next_batter()
 
-            # Pinch-hit if batter is at PA cap
+            # Pinch-hit if batter is at PA cap (pure pitchers are exempt — they auto-out forever)
+            is_pure_pitcher = batter_slot.field_position == 'P' and not batter_slot.dh_eligible
             cap = batter_pa_cap(batter_slot.stats)
-            if batter_slot.pa_used >= cap and cap != 999:
+            if not is_pure_pitcher and batter_slot.pa_used >= cap and cap != 999:
                 sub = _best_bench_player(batting_team.bench)
                 if sub is not None:
                     slot_idx = (batting_team.current_batting_spot - 1) % 9
@@ -451,6 +455,7 @@ def simulate_game(
             runs_on_play = 0
             is_hit = outcome in ('single', 'double', 'triple', 'hr')
             is_out = outcome in ('k', 'go', 'fo')
+            runners_before = dict(runners)  # snapshot before any runner movement
 
             if is_out:
                 outs += 1
@@ -531,6 +536,10 @@ def simulate_game(
 
             inning_runs += runs_on_play
 
+            all_runner_outcomes.extend(
+                _build_runner_outcomes(event_id, batter_slot.player_id, outcome, runners_before, runners)
+            )
+
             batter_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
             pitcher_name = player_info.get(fielding_team.current_pitcher.player_id, {}).get('full_name', 'Unknown')
             all_events.append({
@@ -598,6 +607,71 @@ def _apply_batter_to_runners(runners: dict[int, int], batter_id: int) -> None:
     for base, pid in list(runners.items()):
         if pid == -1:
             runners[base] = batter_id
+
+
+def _build_runner_outcomes(
+    event_id: str,
+    batter_id: int,
+    outcome: str,
+    runners_before: dict[int, int],
+    runners_after: dict[int, int],
+) -> list[dict]:
+    """Build sim_event_runner_outcomes rows for a plate appearance event."""
+    rows = []
+    is_out = outcome in ('k', 'go', 'fo')
+
+    # Batter (base_before = 0)
+    if is_out:
+        rows.append({
+            'sim_event_id': event_id,
+            'base_before': 0,
+            'player_id': batter_id,
+            'intermediate_base': None,
+            'final_base': None,
+            'putout_at_base': 1,
+            'putout_type': 'force',
+        })
+    elif outcome == 'hr':
+        rows.append({
+            'sim_event_id': event_id,
+            'base_before': 0,
+            'player_id': batter_id,
+            'intermediate_base': None,
+            'final_base': 4,
+            'putout_at_base': None,
+            'putout_type': None,
+        })
+    else:
+        batter_final = next((base for base, pid in runners_after.items() if pid == batter_id), None)
+        rows.append({
+            'sim_event_id': event_id,
+            'base_before': 0,
+            'player_id': batter_id,
+            'intermediate_base': None,
+            'final_base': batter_final,
+            'putout_at_base': None,
+            'putout_type': None,
+        })
+
+    # Each runner already on base
+    for base_before, pid in runners_before.items():
+        if not pid:
+            continue
+        if is_out:
+            final_base = base_before  # runners stay on outs (no DP modelled)
+        else:
+            final_base = next((base for base, rpid in runners_after.items() if rpid == pid), 4)
+        rows.append({
+            'sim_event_id': event_id,
+            'base_before': base_before,
+            'player_id': pid,
+            'intermediate_base': None,
+            'final_base': final_base,
+            'putout_at_base': None,
+            'putout_type': None,
+        })
+
+    return rows
 
 
 def _find_batter_stats(player_id: int, team: TeamState, batter_stats_map: dict) -> dict | None:
