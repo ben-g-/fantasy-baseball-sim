@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { supabase } from './supabase';
 
-const SIM_SERVICE_URL = process.env.SIM_SERVICE_URL ?? 'http://sim:8000';
+const SIM_SERVICE_URL = process.env.SIM_SERVICE_URL;
 
 async function dispatchDueMatchups(): Promise<void> {
   const now = new Date().toISOString();
@@ -16,7 +16,7 @@ async function dispatchDueMatchups(): Promise<void> {
 
   for (const matchup of due) {
     try {
-      const resp = await fetch(`${SIM_SERVICE_URL}/sim`, {
+      const resp = await fetch(`${SIM_SERVICE_URL!}/sim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchup_id: matchup.id }),
@@ -27,15 +27,23 @@ async function dispatchDueMatchups(): Promise<void> {
         console.log(`Sim dispatched for matchup ${matchup.id}`);
       }
     } catch (err) {
+      const cause = (err as { cause?: { code?: string } }).cause;
+      if (cause?.code === 'ECONNREFUSED') {
+        console.warn(`Sim service unreachable at ${SIM_SERVICE_URL} — dispatcher will retry next minute`);
+        break;
+      }
       console.error(`Sim dispatch error for ${matchup.id}:`, err);
     }
   }
 }
 
 export function startSimDispatcher(): void {
-  // Check every minute
+  if (!SIM_SERVICE_URL) {
+    console.log('SIM_SERVICE_URL not set — sim dispatcher disabled');
+    return;
+  }
   cron.schedule('* * * * *', () => {
     dispatchDueMatchups().catch((err) => console.error('dispatchDueMatchups error:', err));
   });
-  console.log('Sim dispatcher started');
+  console.log(`Sim dispatcher started (${SIM_SERVICE_URL})`);
 }
