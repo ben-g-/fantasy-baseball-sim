@@ -215,7 +215,7 @@ def sb_success_rate(batter_stats: dict | None) -> float:
 def batter_pa_cap(batter_stats: dict | None) -> int:
     """Maximum PA allowed based on pre-lock season PA count. 0 = benched."""
     if batter_stats is None:
-        return 0
+        return 999  # no stats record = early season / not yet ingested → unlimited
     pa = batter_stats.get('pa', 0)
     if pa == 0:
         return 0
