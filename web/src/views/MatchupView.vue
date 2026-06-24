@@ -50,7 +50,10 @@ onMounted(() => {
         if (newStatus === 'sim_complete' || newStatus === 'sim_error') load()
       },
     )
-    .subscribe()
+    .subscribe((status, err) => {
+      if (err) console.error('Realtime error:', err)
+      else console.log('Realtime status:', status)
+    })
 })
 
 onUnmounted(() => {
