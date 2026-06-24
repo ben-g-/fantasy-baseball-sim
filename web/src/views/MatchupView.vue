@@ -51,6 +51,25 @@ onMounted(() => {
         if (newStatus === 'sim_complete' || newStatus === 'sim_error') load()
       },
     )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'lineups' },
+      (payload) => {
+        if ((payload.new as Record<string, unknown>)?.matchup_id !== matchupId) return
+        load()
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'lineup_batting_order' },
+      (payload) => {
+        const lineupId = (payload.new as Record<string, unknown>)?.lineup_id
+          ?? (payload.old as Record<string, unknown>)?.lineup_id
+        const lineupIds = [matchup.value?.home_lineup?.id, matchup.value?.road_lineup?.id]
+        if (!lineupIds.includes(lineupId as string)) return
+        load()
+      },
+    )
     .subscribe((_status, err) => {
       if (err) console.error('Realtime error:', err)
     })
