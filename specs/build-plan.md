@@ -191,6 +191,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Screen transforms to results view after sim completes (via Supabase Realtime)
 - Box Score tab: line score grid, batting stats table, pitching stats table
 - Play-by-Play tab: chronological event feed grouped by half-inning
+- Supabase Realtime for opponent lineup changes: subscribe to `lineups` / `lineup_batting_order` table changes so the opponent's SP and batting order edits appear live without a page refresh
 
 **Validation:** A sim job can be manually triggered for a seeded matchup. The sim runs, produces play-by-play events and a box score, and the Matchup Screen switches to post-sim mode and displays the results.
 
@@ -364,8 +365,6 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 - **Lock-state timer unit test:** Test `useLineupPanel` with `vi.useFakeTimers()` — confirm `spLocked`/`boLocked` are false before the deadline and flip to true when the clock advances past it, without a page reload.
 - **SP ineligibility verification:** Confirm that a pitcher who started (or is going to start — keeping in mind that the SP locks before the previous week's sim) in one of the two preceding weeks' sims appears with `is_sp_eligible_this_week: false` in the SP candidate list. Requires a matchup where the SP deadline has not passed and at least one pitcher has a recent start on record in the database.
 - **Home screen "action required" indicator:** Badge on matchup cards when a deadline is approaching and the user has not yet submitted their SP or batting order.
-- **Supabase Realtime for opponent lineup changes:** Subscribe to `lineups` / `lineup_batting_order` table changes so the opponent's SP and batting order edits appear live without a page refresh.
-- **Supabase Realtime for sim results:** Subscribe to `matchups` table changes so the Matchup Screen switches to post-sim mode automatically when `sim_status` becomes `sim_complete`, without a manual refresh.
 - **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be number of teammate plate appearances spent on first or second base with the subsequent base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
 - **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Addressed in Phase 9 (AI Manager).
 
