@@ -44,8 +44,10 @@ onMounted(() => {
     .channel(`matchup-sim-${matchupId}`)
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'matchups', filter: `id=eq.${matchupId}` },
+      { event: 'UPDATE', schema: 'public', table: 'matchups' },
       (payload) => {
+        console.log('Realtime matchup update:', payload)
+        if ((payload.new as Record<string, unknown>)?.id !== matchupId) return
         const newStatus = (payload.new as Record<string, unknown>)?.sim_status as string | undefined
         if (newStatus === 'sim_complete' || newStatus === 'sim_error') load()
       },
