@@ -29,19 +29,19 @@ devRouter.post('/dev/matchups/:id/sim', async (req: Request, res: Response) => {
     return;
   }
 
-  await supabase.from('matchups').update({ sim_status: 'sim_pending' }).eq('id', id);
-
   try {
     const simResp = await fetch(`${simUrl}/sim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ matchup_id: id }),
     });
-    if (!simResp.ok) throw new Error(`Sim service returned ${simResp.status}`);
-    await supabase.from('matchups').update({ sim_status: 'sim_complete' }).eq('id', id);
-    res.json({ matchup_id: id, sim_status: 'sim_complete' });
+    const body = await simResp.json().catch(() => null);
+    if (!simResp.ok) {
+      res.status(502).json({ error: 'Sim service error', details: body ?? `HTTP ${simResp.status}` });
+      return;
+    }
+    res.json(body);
   } catch (err) {
-    await supabase.from('matchups').update({ sim_status: 'sim_error' }).eq('id', id);
     res.status(502).json({ error: 'Sim service error', details: String(err) });
   }
 });
