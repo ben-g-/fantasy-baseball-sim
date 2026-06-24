@@ -386,6 +386,7 @@ def simulate_game(
                     slot_idx = (batting_team.current_batting_spot - 1) % 9
                     batting_team.bench.remove(sub)
                     sub.batting_position = batter_slot.batting_position
+                    sub.field_position = batter_slot.field_position
                     batting_team.batting_order[slot_idx] = sub
                     out_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
                     sub_name = player_info.get(sub.player_id, {}).get('full_name', 'Unknown')
