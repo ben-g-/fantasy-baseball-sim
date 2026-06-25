@@ -180,8 +180,8 @@ These are defined here rather than in the codebase so they are easy to find and 
 - Templates for: plate appearance outcomes, pitching changes, substitutions, stolen bases, caught stealing, pickoffs, errors, player removals
 
 **Job dispatch (Node.js)**
-- Implement node-cron job: at each scheduled sim time, find pending matchups and make a direct HTTP POST to the Python sim service for each, processed sequentially; set matchup status to `sim_pending` before each call and `sim_complete` on success
-- Error handling: if a sim call fails or times out, catch the error, set the matchup status to `sim_error`, and log the failure for investigation. A `sim_error` status prevents the matchup from being retried automatically and flags it for manual intervention at MVP
+- Implement node-cron job: polls every minute, finds all matchups with `sim_status = 'scheduled'` and `sim_scheduled_at <= now`, and POSTs each matchup ID to the Python sim service sequentially. The sim service owns all status transitions (`sim_pending` on receipt, `sim_complete` or `sim_error` on completion). Dispatcher is disabled at startup if `SIM_SERVICE_URL` is not set.
+- Error handling: if a sim call fails or times out, the sim service sets `sim_status = 'sim_error'` and logs the failure. A `sim_error` status prevents the matchup from being retried automatically and flags it for manual intervention at MVP.
 - Supabase Realtime: publish `sim_complete` event to subscribed clients
 
 **API**
