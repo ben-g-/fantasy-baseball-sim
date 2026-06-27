@@ -8,7 +8,7 @@ branch logic inside simulate_game.
 from itertools import cycle
 
 import engine
-from engine import BatterSlot, PitcherSlot, TeamState, _build_runner_outcomes, _find_slot, simulate_game
+from engine import BatterSlot, PitcherSlot, TeamState, _apply_pa_outcome, _build_runner_outcomes, _find_slot, simulate_game
 from stats import LeagueAverages
 
 
@@ -62,6 +62,23 @@ def _base_sim_inputs() -> dict:
         'road_bench_ids': [],
         'seed': 7,
     }
+
+
+def _make_team_state(team_id: str, pitcher_id: int) -> TeamState:
+    return TeamState(
+        team_id=team_id,
+        batting_order=[
+            BatterSlot(
+                batting_position=1,
+                player_id=9000 + pitcher_id,
+                field_position='DH',
+                bats='R',
+                stats=None,
+            )
+        ],
+        bullpen=[],
+        current_pitcher=PitcherSlot(player_id=pitcher_id, throws='R', stats=None),
+    )
 
 
 def _run_with_outcome_cycle(monkeypatch, outcomes: list[str]) -> dict:
@@ -122,6 +139,105 @@ def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
     assert 'bb' in pa_outcomes
     assert 'hbp' in pa_outcomes
     assert observed_bb_bucket == expected_bb_bucket
+
+
+def test_apply_pa_outcome_strikeout_updates_outs_and_k_buckets():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome='k',
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 0, 2: 0, 3: 0},
+        outs=0,
+        inning_hits=0,
+    )
+
+    assert outs == 1
+    assert runs_on_play == 0
+    assert inning_hits == 0
+    assert runners == {1: 0, 2: 0, 3: 0}
+    assert batting_team.batter_stats[111]['ab'] == 1
+    assert batting_team.batter_stats[111]['k'] == 1
+    assert fielding_team.pitcher_stats[2]['outs_recorded'] == 1
+    assert fielding_team.pitcher_stats[2]['k'] == 1
+
+
+def test_apply_pa_outcome_walk_forces_runner_and_increments_bb_buckets():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome='bb',
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 0, 3: 0},
+        outs=1,
+        inning_hits=0,
+    )
+
+    assert outs == 1
+    assert runs_on_play == 0
+    assert inning_hits == 0
+    assert runners == {1: 111, 2: 77, 3: 0}
+    assert batting_team.batter_stats[111]['bb'] == 1
+    assert fielding_team.pitcher_stats[2]['bb'] == 1
+
+
+def test_apply_pa_outcome_hbp_updates_batter_bb_but_not_pitcher_bb():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome='hbp',
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 0, 2: 0, 3: 0},
+        outs=2,
+        inning_hits=0,
+    )
+
+    assert outs == 2
+    assert runs_on_play == 0
+    assert inning_hits == 0
+    assert runners == {1: 111, 2: 0, 3: 0}
+    assert batting_team.batter_stats[111]['bb'] == 1
+    assert fielding_team.pitcher_stats[2]['bb'] == 0
+
+
+def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome='double',
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 0, 3: 0},
+        outs=1,
+        inning_hits=0,
+    )
+
+    assert outs == 1
+    assert runs_on_play == 1
+    assert inning_hits == 1
+    assert runners == {1: 0, 2: 111, 3: 0}
+    assert batting_team.batter_stats[111]['ab'] == 1
+    assert batting_team.batter_stats[111]['h'] == 1
+    assert batting_team.batter_stats[111]['doubles'] == 1
+    assert batting_team.batter_stats[111]['rbi'] == 1
+    assert fielding_team.pitcher_stats[2]['h'] == 1
+    assert fielding_team.pitcher_stats[2]['r'] == 1
+    assert fielding_team.pitcher_stats[2]['er'] == 1
 
 
 def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
