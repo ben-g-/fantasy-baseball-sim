@@ -43,6 +43,60 @@ class SimRepository(Protocol):
     def mark_sim_error(self, matchup_id: str) -> None: ...
 
 
+class DbSimRepository:
+    """Concrete repository adapter backed by sim/db.py functions."""
+
+    def fetch_matchup(self, matchup_id: str) -> dict:
+        return db.fetch_matchup(matchup_id)
+
+    def mark_sim_pending(self, matchup_id: str) -> None:
+        db.mark_sim_pending(matchup_id)
+
+    def fetch_lineup(self, matchup_id: str, team_id: str) -> dict:
+        return db.fetch_lineup(matchup_id, team_id)
+
+    def fetch_roster_player_ids(self, team_id: str, league_id: str) -> list[int]:
+        return db.fetch_roster_player_ids(team_id, league_id)
+
+    def fetch_batter_stats(self, player_ids: list[int], sim_date: str) -> dict[int, dict]:
+        return db.fetch_batter_stats(player_ids, sim_date)
+
+    def fetch_pitcher_stats(self, player_ids: list[int], sim_date: str) -> dict[int, dict]:
+        return db.fetch_pitcher_stats(player_ids, sim_date)
+
+    def fetch_player_info(self, player_ids: list[int]) -> dict[int, dict]:
+        return db.fetch_player_info(player_ids)
+
+    def fetch_league_batter_averages(self, sim_date: str) -> dict | None:
+        return db.fetch_league_batter_averages(sim_date)
+
+    def fetch_league_pitcher_averages(self, sim_date: str) -> dict | None:
+        return db.fetch_league_pitcher_averages(sim_date)
+
+    def write_results(
+        self,
+        matchup_id: str,
+        events: list[dict],
+        runner_outcomes: list[dict],
+        batter_stats: list[dict],
+        batter_positions: list[dict],
+        pitcher_stats: list[dict],
+        line_score: list[dict],
+    ) -> None:
+        db.write_results(
+            matchup_id=matchup_id,
+            events=events,
+            runner_outcomes=runner_outcomes,
+            batter_stats=batter_stats,
+            batter_positions=batter_positions,
+            pitcher_stats=pitcher_stats,
+            line_score=line_score,
+        )
+
+    def mark_sim_error(self, matchup_id: str) -> None:
+        db.mark_sim_error(matchup_id)
+
+
 class MatchupNotFoundError(Exception):
     """Raised when a matchup ID does not exist."""
 
@@ -59,12 +113,18 @@ class SimExecutionError(Exception):
     """Raised when simulation execution fails after marking pending."""
 
 
+DEFAULT_REPOSITORY: SimRepository = DbSimRepository()
+
+
 def run_matchup(
     matchup_id: str,
-    repo: SimRepository = db,
+    repo: SimRepository | None = None,
     simulate_fn: Callable[..., dict] | None = None,
 ) -> dict:
     """Run simulation workflow for one matchup and persist results."""
+    if repo is None:
+        repo = DEFAULT_REPOSITORY
+
     if simulate_fn is None:
         simulate_fn = simulate_game
 
