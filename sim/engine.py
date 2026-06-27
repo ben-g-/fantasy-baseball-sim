@@ -458,40 +458,15 @@ def simulate_game(
             is_out = outcome in ('k', 'go', 'fo')
             runners_before = dict(runners)  # snapshot before any runner movement
 
-            if is_out:
-                outs += 1
-                fielding_team.record_pitcher(outs=1, k=(1 if outcome == 'k' else 0))
-                batting_team.record_batter(batter_slot, ab=1, k=(1 if outcome == 'k' else 0))
-            elif outcome == 'bb':
-                new_runners, runs_on_play = _advance_runners('bb', runners, outs)
-                _apply_batter_to_runners(new_runners, batter_slot.player_id)
-                runners = new_runners
-                fielding_team.record_pitcher(bb=1)
-                batting_team.record_batter(batter_slot, bb=1)
-            elif outcome == 'hbp':
-                new_runners, runs_on_play = _advance_runners('hbp', runners, outs)
-                _apply_batter_to_runners(new_runners, batter_slot.player_id)
-                runners = new_runners
-                fielding_team.record_pitcher()
-                batting_team.record_batter(batter_slot, bb=1)  # bb bucket for HBP (on-base)
-            elif is_hit:
-                new_runners, runs_on_play = _advance_runners(outcome, runners, outs)
-                _apply_batter_to_runners(new_runners, batter_slot.player_id)
-                runners = new_runners
-                inning_hits += 1
-                h_flag = 1
-                d_flag = 1 if outcome == 'double' else 0
-                t_flag = 1 if outcome == 'triple' else 0
-                hr_flag = 1 if outcome == 'hr' else 0
-                fielding_team.record_pitcher(
-                    h=h_flag, hr=hr_flag,
-                    r=runs_on_play, er=runs_on_play,
-                )
-                batting_team.record_batter(
-                    batter_slot, ab=1, h=h_flag,
-                    doubles=d_flag, triples=t_flag, hr=hr_flag,
-                    rbi=runs_on_play,
-                )
+            outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+                outcome=outcome,
+                batter_slot=batter_slot,
+                fielding_team=fielding_team,
+                batting_team=batting_team,
+                runners=runners,
+                outs=outs,
+                inning_hits=inning_hits,
+            )
 
             # Attempt stolen base (only if runner on 1st, < 2 outs)
             if runners[1] and outs < 2:
@@ -608,6 +583,58 @@ def _apply_batter_to_runners(runners: dict[int, int], batter_id: int) -> None:
     for base, pid in list(runners.items()):
         if pid == -1:
             runners[base] = batter_id
+
+
+def _apply_pa_outcome(
+    outcome: str,
+    batter_slot: BatterSlot,
+    fielding_team: TeamState,
+    batting_team: TeamState,
+    runners: dict[int, int],
+    outs: int,
+    inning_hits: int,
+) -> tuple[int, dict[int, int], int, int]:
+    """Apply one PA outcome and return updated half-inning state."""
+    runs_on_play = 0
+    is_out = outcome in ('k', 'go', 'fo')
+    is_hit = outcome in ('single', 'double', 'triple', 'hr')
+
+    if is_out:
+        outs += 1
+        fielding_team.record_pitcher(outs=1, k=(1 if outcome == 'k' else 0))
+        batting_team.record_batter(batter_slot, ab=1, k=(1 if outcome == 'k' else 0))
+    elif outcome == 'bb':
+        new_runners, runs_on_play = _advance_runners('bb', runners, outs)
+        _apply_batter_to_runners(new_runners, batter_slot.player_id)
+        runners = new_runners
+        fielding_team.record_pitcher(bb=1)
+        batting_team.record_batter(batter_slot, bb=1)
+    elif outcome == 'hbp':
+        new_runners, runs_on_play = _advance_runners('hbp', runners, outs)
+        _apply_batter_to_runners(new_runners, batter_slot.player_id)
+        runners = new_runners
+        fielding_team.record_pitcher()
+        batting_team.record_batter(batter_slot, bb=1)  # bb bucket for HBP (on-base)
+    elif is_hit:
+        new_runners, runs_on_play = _advance_runners(outcome, runners, outs)
+        _apply_batter_to_runners(new_runners, batter_slot.player_id)
+        runners = new_runners
+        inning_hits += 1
+        h_flag = 1
+        d_flag = 1 if outcome == 'double' else 0
+        t_flag = 1 if outcome == 'triple' else 0
+        hr_flag = 1 if outcome == 'hr' else 0
+        fielding_team.record_pitcher(
+            h=h_flag, hr=hr_flag,
+            r=runs_on_play, er=runs_on_play,
+        )
+        batting_team.record_batter(
+            batter_slot, ab=1, h=h_flag,
+            doubles=d_flag, triples=t_flag, hr=hr_flag,
+            rbi=runs_on_play,
+        )
+
+    return outs, runners, inning_hits, runs_on_play
 
 
 def _build_runner_outcomes(
