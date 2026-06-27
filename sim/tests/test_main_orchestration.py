@@ -1,9 +1,10 @@
-"""Characterization tests for orchestration behavior in sim/main.py."""
+"""Characterization tests for service orchestration and endpoint error mapping."""
 
 import pytest
 from fastapi import HTTPException
 
 import main
+import sim_service
 
 
 def _make_lineup(team_id: str, sp_player_id: int, batter_ids: list[int]) -> dict:
@@ -22,7 +23,7 @@ def _make_lineup(team_id: str, sp_player_id: int, batter_ids: list[int]) -> dict
     }
 
 
-def test_run_sim_happy_path_orchestrates_and_writes_results(monkeypatch):
+def test_run_matchup_happy_path_orchestrates_and_writes_results(monkeypatch):
     matchup_id = 'matchup-1'
     matchup = {
         'id': matchup_id,
@@ -42,22 +43,22 @@ def test_run_sim_happy_path_orchestrates_and_writes_results(monkeypatch):
     captured_sim_kwargs: dict = {}
     captured_write_kwargs: dict = {}
 
-    monkeypatch.setattr(main.db, 'fetch_matchup', lambda mid: matchup)
+    monkeypatch.setattr(sim_service.db, 'fetch_matchup', lambda _mid: matchup)
 
     def fake_mark_pending(mid):
         assert mid == matchup_id
         call_log.append('mark_sim_pending')
 
-    monkeypatch.setattr(main.db, 'mark_sim_pending', fake_mark_pending)
-    monkeypatch.setattr(main.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
+    monkeypatch.setattr(sim_service.db, 'mark_sim_pending', fake_mark_pending)
+    monkeypatch.setattr(sim_service.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
 
     def fake_fetch_lineup(mid, team_id):
         assert mid == matchup_id
         return home_lineup if team_id == matchup['home_team_id'] else road_lineup
 
-    monkeypatch.setattr(main.db, 'fetch_lineup', fake_fetch_lineup)
+    monkeypatch.setattr(sim_service.db, 'fetch_lineup', fake_fetch_lineup)
     monkeypatch.setattr(
-        main.db,
+        sim_service.db,
         'fetch_roster_player_ids',
         lambda team_id, _league_id: home_roster if team_id == matchup['home_team_id'] else road_roster,
     )
@@ -72,17 +73,17 @@ def test_run_sim_happy_path_orchestrates_and_writes_results(monkeypatch):
         }
         return {}
 
-    monkeypatch.setattr(main.db, 'fetch_batter_stats', fake_fetch_batter_stats)
+    monkeypatch.setattr(sim_service.db, 'fetch_batter_stats', fake_fetch_batter_stats)
 
     def fake_fetch_pitcher_stats(player_ids, sim_date):
         assert sim_date == '2026-07-01'
         assert set(player_ids) == {10, 30}
         return {}
 
-    monkeypatch.setattr(main.db, 'fetch_pitcher_stats', fake_fetch_pitcher_stats)
-    monkeypatch.setattr(main.db, 'fetch_player_info', lambda _ids: {})
-    monkeypatch.setattr(main.db, 'fetch_league_batter_averages', lambda _date: None)
-    monkeypatch.setattr(main.db, 'fetch_league_pitcher_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service.db, 'fetch_pitcher_stats', fake_fetch_pitcher_stats)
+    monkeypatch.setattr(sim_service.db, 'fetch_player_info', lambda _ids: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_league_batter_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service.db, 'fetch_league_pitcher_averages', lambda _date: None)
 
     def fake_simulate_game(**kwargs):
         captured_sim_kwargs.update(kwargs)
@@ -96,15 +97,15 @@ def test_run_sim_happy_path_orchestrates_and_writes_results(monkeypatch):
             'final_score': {'home': 2, 'road': 1},
         }
 
-    monkeypatch.setattr(main, 'simulate_game', fake_simulate_game)
+    monkeypatch.setattr(sim_service, 'simulate_game', fake_simulate_game)
 
     def fake_write_results(**kwargs):
         call_log.append('write_results')
         captured_write_kwargs.update(kwargs)
 
-    monkeypatch.setattr(main.db, 'write_results', fake_write_results)
+    monkeypatch.setattr(sim_service.db, 'write_results', fake_write_results)
 
-    response = main.run_sim(main.SimRequest(matchup_id=matchup_id))
+    response = sim_service.run_matchup(matchup_id)
 
     assert response == {'matchup_id': matchup_id, 'final_score': {'home': 2, 'road': 1}}
     assert captured_sim_kwargs['home_bench_ids'] == [11]
@@ -116,7 +117,7 @@ def test_run_sim_happy_path_orchestrates_and_writes_results(monkeypatch):
     assert call_log.index('mark_sim_pending') < call_log.index('write_results')
 
 
-def test_run_sim_marks_error_and_returns_500_on_internal_failure(monkeypatch):
+def test_run_matchup_marks_error_and_raises_execution_error(monkeypatch):
     matchup_id = 'matchup-2'
     matchup = {
         'id': matchup_id,
@@ -132,34 +133,33 @@ def test_run_sim_marks_error_and_returns_500_on_internal_failure(monkeypatch):
 
     call_log: list[str] = []
 
-    monkeypatch.setattr(main.db, 'fetch_matchup', lambda _mid: matchup)
-    monkeypatch.setattr(main.db, 'mark_sim_pending', lambda _mid: call_log.append('mark_sim_pending'))
-    monkeypatch.setattr(main.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
-    monkeypatch.setattr(main.db, 'fetch_lineup', lambda _mid, team_id: home_lineup if team_id == 'home-team' else road_lineup)
+    monkeypatch.setattr(sim_service.db, 'fetch_matchup', lambda _mid: matchup)
+    monkeypatch.setattr(sim_service.db, 'mark_sim_pending', lambda _mid: call_log.append('mark_sim_pending'))
+    monkeypatch.setattr(sim_service.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
+    monkeypatch.setattr(sim_service.db, 'fetch_lineup', lambda _mid, team_id: home_lineup if team_id == 'home-team' else road_lineup)
     monkeypatch.setattr(
-        main.db,
+        sim_service.db,
         'fetch_roster_player_ids',
         lambda team_id, _league_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] if team_id == 'home-team' else [21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
     )
-    monkeypatch.setattr(main.db, 'fetch_batter_stats', lambda _ids, _date: {})
-    monkeypatch.setattr(main.db, 'fetch_pitcher_stats', lambda _ids, _date: {})
-    monkeypatch.setattr(main.db, 'fetch_player_info', lambda _ids: {})
-    monkeypatch.setattr(main.db, 'fetch_league_batter_averages', lambda _date: None)
-    monkeypatch.setattr(main.db, 'fetch_league_pitcher_averages', lambda _date: None)
-    monkeypatch.setattr(main, 'simulate_game', lambda **_kwargs: (_ for _ in ()).throw(RuntimeError('sim exploded')))
-    monkeypatch.setattr(main.db, 'write_results', lambda **_kwargs: call_log.append('write_results'))
-    monkeypatch.setattr(main.traceback, 'print_exc', lambda: None)
+    monkeypatch.setattr(sim_service.db, 'fetch_batter_stats', lambda _ids, _date: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_pitcher_stats', lambda _ids, _date: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_player_info', lambda _ids: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_league_batter_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service.db, 'fetch_league_pitcher_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service, 'simulate_game', lambda **_kwargs: (_ for _ in ()).throw(RuntimeError('sim exploded')))
+    monkeypatch.setattr(sim_service.db, 'write_results', lambda **_kwargs: call_log.append('write_results'))
+    monkeypatch.setattr(sim_service.traceback, 'print_exc', lambda: None)
 
-    with pytest.raises(HTTPException) as exc_info:
-        main.run_sim(main.SimRequest(matchup_id=matchup_id))
+    with pytest.raises(sim_service.SimExecutionError) as exc_info:
+        sim_service.run_matchup(matchup_id)
 
-    assert exc_info.value.status_code == 500
-    assert exc_info.value.detail == 'sim exploded'
+    assert str(exc_info.value) == 'sim exploded'
     assert 'write_results' not in call_log
     assert call_log == ['mark_sim_pending', 'mark_sim_error']
 
 
-def test_run_sim_non_scheduled_matchup_returns_409_without_status_changes(monkeypatch):
+def test_run_matchup_non_scheduled_raises_conflict_error_without_status_changes(monkeypatch):
     matchup = {
         'id': 'matchup-3',
         'league_id': 'league-1',
@@ -170,13 +170,50 @@ def test_run_sim_non_scheduled_matchup_returns_409_without_status_changes(monkey
     }
 
     call_log: list[str] = []
-    monkeypatch.setattr(main.db, 'fetch_matchup', lambda _mid: matchup)
-    monkeypatch.setattr(main.db, 'mark_sim_pending', lambda _mid: call_log.append('mark_sim_pending'))
-    monkeypatch.setattr(main.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
+    monkeypatch.setattr(sim_service.db, 'fetch_matchup', lambda _mid: matchup)
+    monkeypatch.setattr(sim_service.db, 'mark_sim_pending', lambda _mid: call_log.append('mark_sim_pending'))
+    monkeypatch.setattr(sim_service.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
+
+    with pytest.raises(sim_service.MatchupNotScheduledError) as exc_info:
+        sim_service.run_matchup('matchup-3')
+
+    assert "sim_pending" in str(exc_info.value)
+    assert call_log == []
+
+
+def test_run_sim_maps_not_found_to_404(monkeypatch):
+    monkeypatch.setattr(main, 'run_matchup', lambda _mid: (_ for _ in ()).throw(sim_service.MatchupNotFoundError()))
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.run_sim(main.SimRequest(matchup_id='missing'))
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == 'Matchup not found'
+
+
+def test_run_sim_maps_not_scheduled_to_409(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        'run_matchup',
+        lambda _mid: (_ for _ in ()).throw(sim_service.MatchupNotScheduledError('sim_pending')),
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         main.run_sim(main.SimRequest(matchup_id='matchup-3'))
 
     assert exc_info.value.status_code == 409
     assert "sim_pending" in exc_info.value.detail
-    assert call_log == []
+
+
+def test_run_sim_maps_execution_error_to_500(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        'run_matchup',
+        lambda _mid: (_ for _ in ()).throw(sim_service.SimExecutionError('sim exploded')),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.run_sim(main.SimRequest(matchup_id='matchup-4'))
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == 'sim exploded'
