@@ -383,3 +383,5 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 - Standalone team roster view (not yet designed)
 - Push notifications
 - Early-season position eligibility: seed from previous season's fielding stats, transitioning to current-season stats once sufficient games have been played (current implementation uses current-season stats only, which under-qualifies players early in the year)
+- Fielding errors in the sim: currently, the sim never produces `error` events, so line-score `E` is always 0 (the enum/column exist)
+- Player differentiation with respect to fielding performance

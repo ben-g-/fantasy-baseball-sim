@@ -29,5 +29,5 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 - `bug-sim-1` and `bug-api-1` are pure correctness gaps independent of the Phase 6
   stats-pipeline work and can be fixed now.
 - Lower-severity / spec-acknowledged-deferred items (SP two-week ineligibility, PATCH
-  response shapes, `422` vs `400` status codes, unattributed errors on the line score,
+  response shapes, `422` vs `400` status codes,
   deadline DST offsets) are not tracked here; see the audit discussion.
