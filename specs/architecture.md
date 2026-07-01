@@ -149,6 +149,12 @@ A pitcher with 0 real-life appearances is unavailable for the sim entirely.
 ### Plate appearance resolution
 Each at-bat is resolved by sampling from a probability distribution derived from the batter's and pitcher's weekly stats. Outcomes include: single, double, triple, home run, walk, strikeout, ground out, fly out, etc. Base-running outcomes (stolen bases, advancing on hits) are resolved separately.
 
+### Extra innings
+
+If the game is tied after 9 innings, play continues in extra innings. Each half-inning in extra innings begins with an automatic runner ("zombie runner") on second base, mirroring the MLB rule. The runner placed on second is the player due to bat immediately before the half-inning's leadoff batter (i.e. the previous batter in the order). Play otherwise proceeds normally; the game ends when one team leads at the end of a completed inning.
+
+There is no fixed inning cap. Termination is instead guaranteed by a special rule: in the bottom of the 30th inning, with two outs and the game tied, the next plate appearance is resolved as a home run automatically (its outcome probability is set to 1 and all other outcomes to 0). This produces a walk-off and ends the game. Because a tie with two outs in the bottom of the 30th is always converted into a home-team win, the 30th inning can never end tied, so no game can extend beyond it. This rule always resolves such a game in the home team's favor; given how improbable reaching the 30th inning is, this asymmetry is acceptable. The forced home run takes precedence over all other plate-appearance rules, including the pure-pitcher auto-out.
+
 ### AI manager rules (MVP)
 - Enforce pitcher appearance caps as described above
 - Enforce batter appearance caps: sub in a bench player when a batter hits his cap mid-game
