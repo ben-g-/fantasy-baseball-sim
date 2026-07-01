@@ -22,12 +22,19 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-6](bug-sim-6.md) | Sim engine | PA event sequencing corrupted by post-PA steal events | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
+## Low severity
+
+| ID | Component | Title | Status |
+|---|---|---|---|
+| [bug-api-3](bug-api-3.md) | API server | PATCH lineup endpoints don't conform to response/status-code contract | Open |
+
 ## Notes
 
 - `bug-sim-2` and `bug-sim-3` are coupled: the platoon-model fix (`bug-sim-3`) depends on
   post-lock stats being wired first (`bug-sim-2`).
 - `bug-sim-1` and `bug-api-1` are pure correctness gaps independent of the Phase 6
   stats-pipeline work and can be fixed now.
-- Lower-severity / spec-acknowledged-deferred items (SP two-week ineligibility, PATCH
-  response shapes, `422` vs `400` status codes,
-  deadline DST offsets) are not tracked here; see the audit discussion.
+- The SP two-week ineligibility item is spec-acknowledged-deferred and not tracked here;
+  see the audit discussion.
+- The deadline DST assumption is documented as a code comment in
+  `api/src/lib/deadlines.ts` rather than tracked as a bug (near-zero in-season impact).

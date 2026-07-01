@@ -6,6 +6,11 @@ export interface Deadlines {
 }
 
 export function computeDeadlines(simScheduledAt: Date): Deadlines {
+  // NOTE: ET clock times are hardcoded as fixed UTC hours assuming EDT (UTC−4).
+  // This is correct for the entire MLB season (regular season + playoffs fall within
+  // US DST, mid-March to early November), so in-season deadlines always land in EDT.
+  // A deadline computed for a sim near the DST boundary could be off by one hour in ET;
+  // if support for out-of-DST dates is ever needed, convert via a real ET timezone.
   // Road SP: sim date − 8 days, 22:00 UTC (= 6 PM ET)
   const roadSp = new Date(simScheduledAt);
   roadSp.setUTCDate(roadSp.getUTCDate() - 8);
