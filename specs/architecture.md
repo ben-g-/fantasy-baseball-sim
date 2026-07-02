@@ -156,7 +156,7 @@ If the game is tied after 9 innings, play continues in extra innings. Each half-
 There is no fixed inning cap. Termination is instead guaranteed by making every plate appearance in the bottom of the 30th inning deterministic, based on the score at the moment that plate appearance begins:
 
 - **Tied:** the plate appearance is resolved as a home run automatically (its outcome probability is set to 1 and all other outcomes to 0). This produces a walk-off and ends the game in the home team's favor.
-- **Road team leading:** the plate appearance is resolved as a guaranteed out with no base-running — no runner advances, scores, or is otherwise retired. The score is frozen until the third out ends the inning with the road team still ahead.
+- **Road team leading:** the plate appearance is resolved as a guaranteed out with no base-running. Because every batter is retired, no batter reaches base, so the only runner who can be on base is the zombie runner placed at the start of the half-inning; the forced out never advances or scores him. The score is frozen until the third out ends the inning with the road team still ahead.
 
 Both rules are applied regardless of the number of outs. Two separate holes make this necessary, and both stem from a single play being able to change the score and record outs at the same time:
 
