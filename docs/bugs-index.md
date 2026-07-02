@@ -21,6 +21,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-5](bug-sim-5.md) | Sim engine | Walk/HBP-forced runs not attributed to R/ER/RBI | Open |
 | [bug-sim-6](bug-sim-6.md) | Sim engine | PA event sequencing corrupted by post-PA steal events | Open |
 | [bug-sim-7](bug-sim-7.md) | Sim engine | Extra-innings termination doesn't match spec (18-inning cap, no forced-HR rule) | Open |
+| [bug-sim-8](bug-sim-8.md) | Sim engine | Baserunner outcomes on outs not modelled (no sac flies, double plays, or advancement on outs) | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
 ## Low severity
