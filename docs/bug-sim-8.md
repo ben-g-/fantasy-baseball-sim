@@ -14,7 +14,7 @@ the engine never generates:
 - Runners tagging up / advancing on **flyouts** (sacrifice flies) and on **groundouts**,
   sometimes succeeding and sometimes being thrown out advancing.
 - Runners **forced** to advance on ground balls, which can convert a groundout into a
-  **double or triple play** (a lead runner retired in addition to — or instead of — the
+  **double or triple play** or a **force play** (a lead runner retired in addition to — or instead of — the
   batter).
 - Runners **caught off their base on lineouts** (doubled off).
 
@@ -32,7 +32,9 @@ plays, runners frozen in place on every groundout).
 - `specs/architecture.md` §Simulation Design → §Extra innings: the termination guarantee
   is deliberately independent of the number of outs, so it remains sound once multi-out
   plays exist (a double/triple play cannot end a tied bottom-of-the-30th without the
-  forced-HR rule firing).
+  forced-HR rule firing) and once plays exist that both score a run and make an out (which
+  would otherwise potentially tie the score up and end the inning on the same play). This
+  soundness depends on the road-leading forced-out rule added in `bug-sim-7`.
 
 ## Location
 
