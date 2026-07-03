@@ -7,6 +7,10 @@ load_dotenv()
 _client: Client | None = None
 
 
+class LineupNotFoundError(Exception):
+    """Raised when a matchup team has no lineup row (e.g. lineup was never created)."""
+
+
 def get_client() -> Client:
     global _client
     if _client is None:
@@ -36,9 +40,13 @@ def fetch_lineup(matchup_id: str, team_id: str) -> dict:
         .select('id, team_id, sp_player_id')
         .eq('matchup_id', matchup_id)
         .eq('team_id', team_id)
-        .single()
+        .maybe_single()
         .execute()
     )
+    if lineup is None or lineup.data is None:
+        raise LineupNotFoundError(
+            f"No lineup found for team {team_id} in matchup {matchup_id}"
+        )
     data = lineup.data
     bo = (
         sb.table('lineup_batting_order')
