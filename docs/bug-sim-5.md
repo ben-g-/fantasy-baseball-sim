@@ -19,7 +19,7 @@ score. Box-score pitching totals will not reconcile with the line score.
 
 ## Location
 
-- `sim/engine.py:606-617` — `_apply_pa_outcome`, `bb` and `hbp` branches
+- `sim/src/engine.py:606-617` — `_apply_pa_outcome`, `bb` and `hbp` branches
 
 ## Details
 

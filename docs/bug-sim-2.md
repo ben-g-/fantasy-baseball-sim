@@ -27,10 +27,10 @@ to be reserved for AI-manager decisions only.
 
 ## Location
 
-- `sim/db.py:54-83` — `fetch_batter_stats` / `fetch_pitcher_stats` read
+- `sim/src/db.py:54-83` — `fetch_batter_stats` / `fetch_pitcher_stats` read
   `batter_pre_lock_stats` / `pitcher_pre_lock_stats` only. No post-lock reader exists.
-- `sim/sim_service.py:161-163` — fetches the single stat map and passes it to the engine.
-- `sim/engine.py` — the same `batter_stats_map` / `pitcher_stats_map` feed
+- `sim/src/sim_service.py:161-163` — fetches the single stat map and passes it to the engine.
+- `sim/src/engine.py` — the same `batter_stats_map` / `pitcher_stats_map` feed
   `pa_probabilities` (`_simulate_pa`), `batter_pa_cap`, `pitcher_bf_cap`,
   `pitcher_pitch_cap`, and the AI's `_best_bench_player`.
 
@@ -61,7 +61,7 @@ the engine cannot hold both snapshots at once.
 
 ## Suggested fix
 
-- Add `fetch_batter_post_lock_stats` / `fetch_pitcher_post_lock_stats` in `sim/db.py`
+- Add `fetch_batter_post_lock_stats` / `fetch_pitcher_post_lock_stats` in `sim/src/db.py`
   (and matching methods on `SimRepository` / `DbSimRepository`).
 - Thread two maps through `run_matchup` → `simulate_game`: a post-lock map for
   probabilities and caps, and a pre-lock map for AI-manager logic only.

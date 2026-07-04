@@ -38,15 +38,15 @@ plays, runners frozen in place on every groundout).
 
 ## Location
 
-- `sim/engine.py:588-637` — `_apply_pa_outcome`: on any out (`k`/`go`/`fo`) it does
+- `sim/src/engine.py:588-637` — `_apply_pa_outcome`: on any out (`k`/`go`/`fo`) it does
   `outs += 1` and records the AB/out, but never touches `runners`. Runners neither advance
   nor are retired, and no runs (e.g. a sac fly with a runner on 3rd) ever score on an out.
-- `sim/engine.py:640-702` — `_build_runner_outcomes`: on outs, every existing runner gets
+- `sim/src/engine.py:640-702` — `_build_runner_outcomes`: on outs, every existing runner gets
   `final_base = base_before` (line 689: "runners stay on outs (no DP modelled)"), and
   runner rows never carry a `putout_at_base`/`putout_type`. The batter row is always
   emitted with `putout_type: 'force'` at base 1 for *every* out type, which is also wrong
   — a strikeout is not a force out and a caught flyout is not a putout at first.
-- `sim/engine.py:29-89` — `_advance_runners`: the advancement lookup only handles hits and
+- `sim/src/engine.py:29-89` — `_advance_runners`: the advancement lookup only handles hits and
   bb/hbp force advances; there is no branch for advancement or retirement on outs.
 
 ## Details

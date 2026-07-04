@@ -24,8 +24,8 @@ rates, and only then combine via log5.
 
 ## Location
 
-- `sim/stats.py:82-116` — `_batter_rates` / `_pitcher_rates`
-- `sim/stats.py:156-182` — `pa_probabilities`
+- `sim/src/stats.py:82-116` — `_batter_rates` / `_pitcher_rates`
+- `sim/src/stats.py:156-182` — `pa_probabilities`
 
 ## Details
 

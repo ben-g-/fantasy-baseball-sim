@@ -4,14 +4,14 @@
 
 The following refactors are already done and should be treated as baseline:
 
-- Extracted the plate-appearance outcome branch into `_apply_pa_outcome` in `sim/engine.py`.
+- Extracted the plate-appearance outcome branch into `_apply_pa_outcome` in `sim/src/engine.py`.
 - Added direct unit tests for `_apply_pa_outcome` branches (out, bb, hbp, hit) in `sim/tests/test_engine_characterization.py`.
-- Made `POST /sim` endpoint in `sim/main.py` thin: it now delegates to a service and maps domain exceptions to HTTP status codes.
-- Moved orchestration into `run_matchup` in `sim/sim_service.py`.
+- Made `POST /sim` endpoint in `sim/src/main.py` thin: it now delegates to a service and maps domain exceptions to HTTP status codes.
+- Moved orchestration into `run_matchup` in `sim/src/sim_service.py`.
 - Added domain exceptions in service layer (`MatchupNotFoundError`, `MatchupNotScheduledError`, `SimExecutionError`).
 - Introduced `SimRepository` contract and `DbSimRepository` adapter to reduce direct data-access coupling.
 - Added orchestration and mapping tests in `sim/tests/test_main_orchestration.py`, including a DIP regression test that fails if module-level db access leaks back into orchestration.
-- Extracted the half-inning control flow in `_simulate_half_inning` (`sim/engine.py`) into pure helpers: `_apply_pinch_hit_substitution`, `_apply_pitcher_change`, `_apply_steal_attempt`, and a shared `_make_event` builder used by all event-dict construction sites (substitution, pitching change, stolen base, caught stealing, plate appearance). Behavior — including the known event-sequencing quirk tracked in `bug-sim-6` — was preserved exactly; all 53 pre-existing tests pass unchanged.
+- Extracted the half-inning control flow in `_simulate_half_inning` (`sim/src/engine.py`) into pure helpers: `_apply_pinch_hit_substitution`, `_apply_pitcher_change`, `_apply_steal_attempt`, and a shared `_make_event` builder used by all event-dict construction sites (substitution, pitching change, stolen base, caught stealing, plate appearance). Behavior — including the known event-sequencing quirk tracked in `bug-sim-6` — was preserved exactly; all 53 pre-existing tests pass unchanged.
 - Added 16 direct unit tests for the four new helpers in `sim/tests/test_engine_characterization.py` (69 tests total), covering substitution/pitcher-change trigger conditions and no-ops, DH vs. pure-pitcher batting-slot handling, and steal/caught-stealing state transitions.
 
 ## Remaining High-Value Refactors

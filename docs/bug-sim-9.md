@@ -33,7 +33,7 @@ specifically, since it can be fixed independently of the run-attribution fix.
 
 ## Location
 
-- `sim/engine.py:608-617` — `_apply_pa_outcome`, `bb` and `hbp` branches:
+- `sim/src/engine.py:608-617` — `_apply_pa_outcome`, `bb` and `hbp` branches:
 
   ```python
   elif outcome == 'bb':

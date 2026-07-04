@@ -21,7 +21,7 @@ out that logically happened afterward. Both break the chronological play-by-play
 
 ## Location
 
-- `sim/engine.py:453-532` — PA resolution, steal handling, and the deferred PA-event append
+- `sim/src/engine.py:453-532` — PA resolution, steal handling, and the deferred PA-event append
 
 ## Details
 

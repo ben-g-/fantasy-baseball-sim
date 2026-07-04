@@ -24,8 +24,8 @@ position record for any starter who was substituted out.
 
 ## Location
 
-- `sim/engine.py:743-753` — `_build_batter_position_rows`
-- `sim/engine.py:384-406` — pinch-hit substitution replaces the slot object
+- `sim/src/engine.py:743-753` — `_build_batter_position_rows`
+- `sim/src/engine.py:384-406` — pinch-hit substitution replaces the slot object
 
 ## Details
 

@@ -1,5 +1,5 @@
 """
-Unit tests for sim/stats.py.
+Unit tests for sim/src/stats.py.
 Run with: pytest sim/tests/
 """
 

@@ -25,10 +25,10 @@ forced-home-run rule in the bottom of the 30th that guarantees a decided result.
 
 ## Location
 
-- `sim/engine.py:543` — `max_innings = 18` safety cap
-- `sim/engine.py:545` — `while inning <= max_innings:` loop bound
-- `sim/engine.py:557-561` — end-of-inning break condition
-- `sim/engine.py:286-305` — `_simulate_pa` (where both forced-outcome overrides must live,
+- `sim/src/engine.py:543` — `max_innings = 18` safety cap
+- `sim/src/engine.py:545` — `while inning <= max_innings:` loop bound
+- `sim/src/engine.py:557-561` — end-of-inning break condition
+- `sim/src/engine.py:286-305` — `_simulate_pa` (where both forced-outcome overrides must live,
   ahead of the pure-pitcher auto-out on lines 293-295)
 
 ## Details

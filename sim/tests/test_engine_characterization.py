@@ -1,5 +1,5 @@
 """
-Characterization tests for sim/engine.py.
+Characterization tests for sim/src/engine.py.
 
 These tests lock in current behavior so we can safely refactor the outcome
 branch logic inside simulate_game.

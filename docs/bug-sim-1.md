@@ -23,8 +23,8 @@ reliever. Every downstream pitching-management behavior is silently disabled.
 
 ## Location
 
-- `sim/engine.py:248-256` (`_build_team_state`, bullpen construction)
-- `sim/engine.py:258-275` (bench construction that excludes pure pitchers)
+- `sim/src/engine.py:248-256` (`_build_team_state`, bullpen construction)
+- `sim/src/engine.py:258-275` (bench construction that excludes pure pitchers)
 
 ## Details
 
@@ -53,11 +53,11 @@ So relievers appear in neither the bullpen nor the bench. The bullpen is always 
 
 ### Consequences
 
-- `TeamState.change_pitcher()` (`sim/engine.py:155-161`) always returns `None`.
+- `TeamState.change_pitcher()` (`sim/src/engine.py:155-161`) always returns `None`.
 - `should_change_pitcher()` may fire, but no substitution occurs, so the pitcher
   appearance-cap "compelled removal" never happens.
 - Reliever sequencing never happens.
-- The DH-transition-when-SP-is-pulled branch (`sim/engine.py:415-430`) is dead code.
+- The DH-transition-when-SP-is-pulled branch (`sim/src/engine.py:415-430`) is dead code.
 
 ## Expected vs actual
 

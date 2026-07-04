@@ -44,7 +44,7 @@ class SimRepository(Protocol):
 
 
 class DbSimRepository:
-    """Concrete repository adapter backed by sim/db.py functions."""
+    """Concrete repository adapter backed by sim/src/db.py functions."""
 
     def fetch_matchup(self, matchup_id: str) -> dict:
         return db.fetch_matchup(matchup_id)
