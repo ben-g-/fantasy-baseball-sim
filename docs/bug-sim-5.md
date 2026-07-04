@@ -50,10 +50,10 @@ elif outcome == 'hbp':
 `runs_on_play` from a bases-loaded walk/HBP is added to `inning_runs` (so the line score
 and final score are correct), but the pitcher's R/ER and the batter's RBI omit it.
 
-Secondary issue in the same branches: HBP is recorded in the batter's `bb` bucket
-(`sim_batter_stats` has no `hbp` column), while the pitcher's `record_pitcher()` on HBP
-records no `bb` at all — an asymmetry. This is a minor fidelity issue and can be handled
-alongside the run-attribution fix.
+A related but separate issue in the same branches — HBP recorded in the batter's `bb`
+bucket while the pitcher's `record_pitcher()` on HBP records no `bb` at all — is tracked
+independently as [bug-sim-9](bug-sim-9.md), since it can be fixed without touching
+run/RBI attribution.
 
 ## Expected vs actual
 
@@ -66,10 +66,8 @@ alongside the run-attribution fix.
 ## Suggested fix
 
 Pass `r=runs_on_play, er=runs_on_play` to `record_pitcher` and `rbi=runs_on_play` to
-`record_batter` in the `bb` and `hbp` branches. Decide on HBP handling: either keep it
-in the `bb` bucket consistently on both sides, or (preferred) leave batter walks and HBP
-distinct if/when an `hbp` column is added; at minimum make the pitcher and batter sides
-symmetric.
+`record_batter` in the `bb` and `hbp` branches. See [bug-sim-9](bug-sim-9.md) for the
+separate decision on HBP bucket/schema semantics.
 
 ## Verification
 

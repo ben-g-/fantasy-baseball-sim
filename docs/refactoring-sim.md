@@ -45,19 +45,7 @@ Benefits:
 - Reduced nesting and easier regression diagnosis.
 - More deterministic unit tests around each behavior boundary.
 
-### 3. Normalize stat semantics for HBP
-
-Current behavior is inconsistent:
-
-- Batter side: HBP is added to batter `bb` bucket.
-- Pitcher side: HBP is not counted in pitcher `bb` and has no dedicated `hbp` result column.
-
-Decision required:
-
-- Either keep combined free-pass semantics intentionally (and rename/document fields), or
-- Add explicit HBP tracking in result schema/API and update UI and tests.
-
-### 4. Formalize repository boundaries
+### 3. Formalize repository boundaries
 
 `DbSimRepository` currently forwards one-to-one to db functions.
 
@@ -66,7 +54,7 @@ Next step:
 - Move higher-level query composition into repository methods (for example, a single method that returns all matchup simulation inputs).
 - Keep `sim_service` focused on orchestration decisions, not retrieval choreography.
 
-### 5. Add service-focused test coverage around edge rules
+### 4. Add service-focused test coverage around edge rules
 
 Keep existing tests, then add:
 
@@ -78,5 +66,4 @@ Keep existing tests, then add:
 
 1. Extract stolen-base helper from `simulate_game`.
 2. Split `run_matchup` into private service sub-functions.
-3. Resolve HBP semantics decision and align schema/API/UI.
-4. Add service-level tests for the chosen HBP semantics and edge rules.
+3. Add service-level tests for edge rules.

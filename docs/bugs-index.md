@@ -22,6 +22,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-6](bug-sim-6.md) | Sim engine | PA event sequencing corrupted by post-PA steal events | Open |
 | [bug-sim-7](bug-sim-7.md) | Sim engine | Extra-innings termination doesn't match spec (18-inning cap, no forced-HR rule) | Open |
 | [bug-sim-8](bug-sim-8.md) | Sim engine | Baserunner outcomes on outs not modelled (no sac flies, double plays, or advancement on outs) | Open |
+| [bug-sim-9](bug-sim-9.md) | Sim engine | HBP credited to batter's `bb` bucket but not the pitcher's | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
 ## Low severity
@@ -34,6 +35,10 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 
 - `bug-sim-2` and `bug-sim-3` are coupled: the platoon-model fix (`bug-sim-3`) depends on
   post-lock stats being wired first (`bug-sim-2`).
+- `bug-sim-5` and `bug-sim-9` overlap: both touch the `bb`/`hbp` branches of `_apply_pa_outcome`.
+  `bug-sim-5` is about R/ER/RBI not being attributed on forced walks/HBP; `bug-sim-9` is about
+  the batter/pitcher `bb` bucket asymmetry on HBP specifically. They can be fixed together or
+  independently.
 - `bug-sim-1` and `bug-api-1` are pure correctness gaps independent of the Phase 6
   stats-pipeline work and can be fixed now.
 - The SP two-week ineligibility item is spec-acknowledged-deferred and not tracked here;

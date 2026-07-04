@@ -120,6 +120,7 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
     assert sum(r['hits'] for r in result['line_score']) == 0
 
 
+# bug-sim-9: pitcher side never gets `bb` credit for HBP; see docs/bug-sim-9.md.
 def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
     outcomes = cycle(['bb', 'hbp', 'k', 'k', 'k'])
     monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcomes))
@@ -189,6 +190,7 @@ def test_apply_pa_outcome_walk_forces_runner_and_increments_bb_buckets():
     assert fielding_team.pitcher_stats[2]['bb'] == 1
 
 
+# bug-sim-9
 def test_apply_pa_outcome_hbp_updates_batter_bb_but_not_pitcher_bb():
     batting_team = _make_team_state('bat', pitcher_id=1)
     fielding_team = _make_team_state('fld', pitcher_id=2)
@@ -251,6 +253,7 @@ def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
     assert sum(r['ab'] for r in result['batter_stats']) + bb_count == len(pa_outcomes)
 
 
+# bug-sim-9
 def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
     result = _run_with_outcome_cycle(monkeypatch, ['hbp', 'k', 'k', 'k'])
     pa_outcomes = _plate_appearance_outcomes(result)
