@@ -5,10 +5,23 @@ These tests lock in current behavior so we can safely refactor the outcome
 branch logic inside simulate_game.
 """
 
+import random
 from itertools import cycle
 
 import engine
-from engine import BatterSlot, PitcherSlot, TeamState, _apply_pa_outcome, _build_runner_outcomes, _find_slot, simulate_game
+from engine import (
+    BatterSlot,
+    PitcherSlot,
+    TeamState,
+    _apply_pa_outcome,
+    _apply_pinch_hit_substitution,
+    _apply_pitcher_change,
+    _apply_steal_attempt,
+    _build_runner_outcomes,
+    _find_slot,
+    _make_event,
+    simulate_game,
+)
 from stats import LeagueAverages
 
 
@@ -275,6 +288,309 @@ def test_outcome_branch_double_increments_hit_buckets(monkeypatch):
     assert sum(r['doubles'] for r in result['batter_stats']) == double_count
     assert sum(r['h'] for r in result['pitcher_stats']) == double_count
     assert sum(r['ab'] for r in result['batter_stats']) == len(pa_outcomes)
+
+
+def test_make_event_builds_expected_shape():
+    event = _make_event(
+        'matchup-1', 3, 'top', 7, 'plate_appearance', 'X singles',
+        pitcher_player_id=42, runs_scored=1, outs_before_play=1,
+    )
+
+    assert event['matchup_id'] == 'matchup-1'
+    assert event['inning'] == 3
+    assert event['half'] == 'top'
+    assert event['sequence_number'] == 7
+    assert event['event_type'] == 'plate_appearance'
+    assert event['description'] == 'X singles'
+    assert event['pitcher_player_id'] == 42
+    assert event['runs_scored'] == 1
+    assert event['outs_before_play'] == 1
+    assert isinstance(event['id'], str) and event['id']
+
+
+def test_make_event_defaults_pitcher_and_runs_and_generates_id():
+    event = _make_event('matchup-1', 1, 'bottom', 1, 'pitching_change', None, outs_before_play=0)
+
+    assert event['pitcher_player_id'] is None
+    assert event['runs_scored'] == 0
+    assert event['id']
+
+
+def test_make_event_uses_provided_event_id():
+    event = _make_event(
+        'matchup-1', 3, 'top', 7, 'plate_appearance', None,
+        outs_before_play=0, event_id='fixed-id',
+    )
+
+    assert event['id'] == 'fixed-id'
+
+
+def test_apply_pinch_hit_substitution_swaps_in_highest_pa_bench_bat():
+    bench_low = BatterSlot(0, 501, '', 'R', {'pa': 10}, dh_eligible=True)
+    bench_high = BatterSlot(0, 502, '', 'R', {'pa': 50}, dh_eligible=True)
+    batter_slot = BatterSlot(1, 111, '1B', 'R', {'pa': 3}, pa_used=1)
+    other_slots = [BatterSlot(i + 2, 200 + i, 'OF', 'R', None) for i in range(8)]
+    team = TeamState(
+        team_id='bat',
+        batting_order=[batter_slot, *other_slots],
+        bullpen=[],
+        current_pitcher=PitcherSlot(1, 'R', None),
+        bench=[bench_low, bench_high],
+    )
+    team.current_batting_spot = 1  # next_batter() already advanced past batter_slot's index 0
+
+    result_slot, seq, events = _apply_pinch_hit_substitution(
+        team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
+    )
+
+    assert result_slot is bench_high
+    assert seq == 6
+    assert bench_high not in team.bench
+    assert team.batting_order[0] is bench_high
+    assert bench_high.batting_position == 1
+    assert bench_high.field_position == '1B'
+    assert len(events) == 1
+    assert events[0]['event_type'] == 'substitution'
+    assert events[0]['sequence_number'] == 6
+    assert events[0]['outs_before_play'] == 1
+
+
+def test_apply_pinch_hit_substitution_noop_below_cap():
+    bench = BatterSlot(0, 501, '', 'R', {'pa': 50}, dh_eligible=True)
+    batter_slot = BatterSlot(1, 111, '1B', 'R', {'pa': 3}, pa_used=0)
+    team = TeamState(
+        team_id='bat',
+        batting_order=[batter_slot],
+        bullpen=[],
+        current_pitcher=PitcherSlot(1, 'R', None),
+        bench=[bench],
+    )
+
+    result_slot, seq, events = _apply_pinch_hit_substitution(
+        team, batter_slot, {}, 'matchup-1', 3, 'top', outs=0, seq=5,
+    )
+
+    assert result_slot is batter_slot
+    assert seq == 5
+    assert events == []
+    assert team.bench == [bench]
+
+
+def test_apply_pinch_hit_substitution_noop_with_no_bench():
+    batter_slot = BatterSlot(1, 111, '1B', 'R', {'pa': 3}, pa_used=1)
+    team = TeamState(
+        team_id='bat',
+        batting_order=[batter_slot],
+        bullpen=[],
+        current_pitcher=PitcherSlot(1, 'R', None),
+        bench=[],
+    )
+
+    result_slot, seq, events = _apply_pinch_hit_substitution(
+        team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
+    )
+
+    assert result_slot is batter_slot
+    assert seq == 5
+    assert events == []
+
+
+def test_apply_pinch_hit_substitution_exempts_pure_pitcher_at_cap():
+    bench = BatterSlot(0, 501, '', 'R', {'pa': 50}, dh_eligible=True)
+    batter_slot = BatterSlot(1, 111, 'P', 'R', {'pa': 3}, dh_eligible=False, pa_used=1)
+    team = TeamState(
+        team_id='bat',
+        batting_order=[batter_slot],
+        bullpen=[],
+        current_pitcher=PitcherSlot(1, 'R', None),
+        bench=[bench],
+    )
+
+    result_slot, seq, events = _apply_pinch_hit_substitution(
+        team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
+    )
+
+    assert result_slot is batter_slot
+    assert seq == 5
+    assert events == []
+    assert team.bench == [bench]
+
+
+def test_apply_pitcher_change_noop_when_caps_not_reached():
+    current = PitcherSlot(1, 'R', {'bf': 100, 'pitches_thrown': 100}, bf_used=10, pitches_used=10)
+    reliever = PitcherSlot(2, 'R', None)
+    team = TeamState(
+        team_id='fld',
+        batting_order=[BatterSlot(9, 1, 'P', 'R', None, dh_eligible=False)],
+        bullpen=[reliever],
+        current_pitcher=current,
+    )
+
+    seq, events = _apply_pitcher_change(team, {}, {}, 'matchup-1', 3, 'top', outs=1, seq=5)
+
+    assert seq == 5
+    assert events == []
+    assert team.current_pitcher is current
+    assert team.bullpen == [reliever]
+
+
+def test_apply_pitcher_change_noop_when_bullpen_empty():
+    current = PitcherSlot(1, 'R', {'bf': 10, 'pitches_thrown': 10}, bf_used=20, pitches_used=20)
+    team = TeamState(
+        team_id='fld',
+        batting_order=[BatterSlot(9, 1, 'P', 'R', None, dh_eligible=False)],
+        bullpen=[],
+        current_pitcher=current,
+    )
+
+    seq, events = _apply_pitcher_change(team, {}, {}, 'matchup-1', 4, 'bottom', outs=0, seq=3)
+
+    assert seq == 3
+    assert events == []
+    assert team.current_pitcher is current
+
+
+def test_apply_pitcher_change_swaps_pure_pitcher_batting_slot():
+    current = PitcherSlot(1, 'R', {'bf': 10, 'pitches_thrown': 10}, bf_used=20, pitches_used=20)
+    reliever = PitcherSlot(2, 'R', None)
+    p_slot = BatterSlot(9, 1, 'P', 'R', None, dh_eligible=False)
+    team = TeamState(
+        team_id='fld',
+        batting_order=[p_slot],
+        bullpen=[reliever],
+        current_pitcher=current,
+    )
+    player_info = {
+        1: {'eligible_positions': ['P']},
+        2: {'eligible_positions': ['P'], 'bats': 'L'},
+    }
+
+    seq, events = _apply_pitcher_change(team, player_info, {}, 'matchup-1', 4, 'bottom', outs=2, seq=7)
+
+    assert team.current_pitcher is reliever
+    assert reliever.sequence == current.sequence + 1
+    assert team.bullpen == []
+    assert team.batting_order[0].player_id == 2
+    assert team.batting_order[0].field_position == 'P'
+    assert team.batting_order[0].bats == 'L'
+    assert team.batting_order[0].batting_position == 9
+    assert seq == 8
+    assert len(events) == 1
+    assert events[0]['event_type'] == 'pitching_change'
+    assert events[0]['pitcher_player_id'] == 2
+    assert events[0]['sequence_number'] == 8
+    assert events[0]['outs_before_play'] == 2
+
+
+def test_apply_pitcher_change_keeps_two_way_player_as_dh():
+    current = PitcherSlot(1, 'R', {'bf': 10, 'pitches_thrown': 10}, bf_used=20, pitches_used=20)
+    reliever = PitcherSlot(2, 'R', None)
+    p_slot = BatterSlot(9, 1, 'P', 'R', None, dh_eligible=True)
+    team = TeamState(
+        team_id='fld',
+        batting_order=[p_slot],
+        bullpen=[reliever],
+        current_pitcher=current,
+    )
+    player_info = {1: {'eligible_positions': ['P', '1B']}}
+
+    seq, events = _apply_pitcher_change(team, player_info, {}, 'matchup-1', 4, 'bottom', outs=0, seq=1)
+
+    assert seq == 2
+    assert team.batting_order[0].field_position == 'DH'
+    assert team.batting_order[0].player_id == 1  # old pitcher stays in the lineup as DH
+    assert len(events) == 1
+
+
+def test_apply_steal_attempt_noop_without_runner_on_first():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    runners = {1: 0, 2: 5, 3: 0}
+
+    result_runners, outs, seq, events = _apply_steal_attempt(
+        batting_team, fielding_team, runners, outs=0, batter_stats_map={}, player_info={},
+        matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
+    )
+
+    assert result_runners == runners
+    assert outs == 0
+    assert seq == 4
+    assert events == []
+
+
+def test_apply_steal_attempt_noop_with_two_outs():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    runners = {1: 77, 2: 0, 3: 0}
+
+    result_runners, outs, seq, events = _apply_steal_attempt(
+        batting_team, fielding_team, runners, outs=2, batter_stats_map={}, player_info={},
+        matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
+    )
+
+    assert result_runners == runners
+    assert outs == 2
+    assert seq == 4
+    assert events == []
+
+
+def test_apply_steal_attempt_no_attempt_leaves_state_unchanged(monkeypatch):
+    monkeypatch.setattr(engine, '_try_steal', lambda *args, **kwargs: None)
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    runners = {1: 77, 2: 0, 3: 0}
+
+    result_runners, outs, seq, events = _apply_steal_attempt(
+        batting_team, fielding_team, runners, outs=0, batter_stats_map={}, player_info={},
+        matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
+    )
+
+    assert result_runners == runners
+    assert outs == 0
+    assert seq == 4
+    assert events == []
+
+
+def test_apply_steal_attempt_success_moves_runner_and_credits_sb(monkeypatch):
+    monkeypatch.setattr(engine, '_try_steal', lambda *args, **kwargs: True)
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order[0].player_id = 77
+    runners = {1: 77, 2: 0, 3: 0}
+
+    result_runners, outs, seq, events = _apply_steal_attempt(
+        batting_team, fielding_team, runners, outs=0, batter_stats_map={}, player_info={},
+        matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
+    )
+
+    assert result_runners == {1: 0, 2: 77, 3: 0}
+    assert outs == 0
+    assert seq == 5
+    assert batting_team.batter_stats[77]['sb'] == 1
+    assert len(events) == 1
+    assert events[0]['event_type'] == 'stolen_base'
+    assert events[0]['sequence_number'] == 5
+    assert events[0]['outs_before_play'] == 0
+
+
+def test_apply_steal_attempt_caught_adds_out_and_removes_runner(monkeypatch):
+    monkeypatch.setattr(engine, '_try_steal', lambda *args, **kwargs: False)
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    runners = {1: 77, 2: 0, 3: 0}
+
+    result_runners, outs, seq, events = _apply_steal_attempt(
+        batting_team, fielding_team, runners, outs=1, batter_stats_map={}, player_info={},
+        matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
+    )
+
+    assert result_runners == {1: 0, 2: 0, 3: 0}
+    assert outs == 2
+    assert seq == 5
+    assert len(events) == 1
+    assert events[0]['event_type'] == 'caught_stealing'
+    assert events[0]['sequence_number'] == 5
+    assert events[0]['outs_before_play'] == 1
 
 
 def test_should_change_pitcher_requires_both_caps_reached():
