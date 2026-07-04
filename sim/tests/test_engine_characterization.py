@@ -118,19 +118,19 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
 
     pa_events = [e for e in result['events'] if e['event_type'] == 'plate_appearance']
     pa_count = len(pa_events)
-    assert pa_count > 0
-    assert all(e['description'] == 'k' for e in pa_events)
+    assert pa_count > 0, 'a full game with every PA forced to a strikeout should still play at least one PA'
+    assert all(e['description'] == 'k' for e in pa_events), 'every forced PA outcome was a strikeout, so every event description should be k'
 
     total_batter_ab = sum(r['ab'] for r in result['batter_stats'])
     total_batter_k = sum(r['k'] for r in result['batter_stats'])
     total_pitcher_outs = sum(r['outs_recorded'] for r in result['pitcher_stats'])
 
-    assert total_batter_ab == pa_count
-    assert total_batter_k == pa_count
-    assert total_pitcher_outs == pa_count
-    assert result['final_score'] == {'home': 0, 'road': 0}
-    assert sum(r['runs'] for r in result['line_score']) == 0
-    assert sum(r['hits'] for r in result['line_score']) == 0
+    assert total_batter_ab == pa_count, 'every strikeout is an AB, so total batter AB should equal the number of PAs'
+    assert total_batter_k == pa_count, 'every PA was a strikeout, so total batter K should equal the number of PAs'
+    assert total_pitcher_outs == pa_count, 'every strikeout is one out, so total pitcher outs_recorded should equal the number of PAs'
+    assert result['final_score'] == {'home': 0, 'road': 0}, 'a game of nothing but strikeouts should never score a run'
+    assert sum(r['runs'] for r in result['line_score']) == 0, 'line score runs should sum to zero when no runner ever reaches base'
+    assert sum(r['hits'] for r in result['line_score']) == 0, 'line score hits should sum to zero when every PA is a strikeout'
 
 
 # bug-sim-9: pitcher side never gets `bb` credit for HBP; see docs/bug-sim-9.md.
@@ -150,9 +150,9 @@ def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
     expected_bb_bucket = sum(1 for o in pa_outcomes if o in ('bb', 'hbp'))
     observed_bb_bucket = sum(r['bb'] for r in result['batter_stats'])
 
-    assert 'bb' in pa_outcomes
-    assert 'hbp' in pa_outcomes
-    assert observed_bb_bucket == expected_bb_bucket
+    assert 'bb' in pa_outcomes, 'the forced outcome cycle includes bb, so at least one should appear in the play-by-play'
+    assert 'hbp' in pa_outcomes, 'the forced outcome cycle includes hbp, so at least one should appear in the play-by-play'
+    assert observed_bb_bucket == expected_bb_bucket, 'current (bug-sim-9) behavior: HBP is folded into the batter bb bucket alongside real walks'
 
 
 def test_apply_pa_outcome_strikeout_updates_outs_and_k_buckets():
@@ -170,14 +170,14 @@ def test_apply_pa_outcome_strikeout_updates_outs_and_k_buckets():
         inning_hits=0,
     )
 
-    assert outs == 1
-    assert runs_on_play == 0
-    assert inning_hits == 0
-    assert runners == {1: 0, 2: 0, 3: 0}
-    assert batting_team.batter_stats[111]['ab'] == 1
-    assert batting_team.batter_stats[111]['k'] == 1
-    assert fielding_team.pitcher_stats[2]['outs_recorded'] == 1
-    assert fielding_team.pitcher_stats[2]['k'] == 1
+    assert outs == 1, 'a strikeout should add exactly one out'
+    assert runs_on_play == 0, 'a strikeout cannot score a run'
+    assert inning_hits == 0, 'a strikeout is not a hit'
+    assert runners == {1: 0, 2: 0, 3: 0}, 'a strikeout with the bases empty should leave the bases empty'
+    assert batting_team.batter_stats[111]['ab'] == 1, 'a strikeout counts as an at-bat'
+    assert batting_team.batter_stats[111]['k'] == 1, 'a strikeout should increment the batter k bucket'
+    assert fielding_team.pitcher_stats[2]['outs_recorded'] == 1, 'the pitcher should be credited with the out'
+    assert fielding_team.pitcher_stats[2]['k'] == 1, 'the pitcher should be credited with the strikeout'
 
 
 def test_apply_pa_outcome_walk_forces_runner_and_increments_bb_buckets():
@@ -195,12 +195,12 @@ def test_apply_pa_outcome_walk_forces_runner_and_increments_bb_buckets():
         inning_hits=0,
     )
 
-    assert outs == 1
-    assert runs_on_play == 0
-    assert inning_hits == 0
-    assert runners == {1: 111, 2: 77, 3: 0}
-    assert batting_team.batter_stats[111]['bb'] == 1
-    assert fielding_team.pitcher_stats[2]['bb'] == 1
+    assert outs == 1, 'a walk does not add an out'
+    assert runs_on_play == 0, 'forcing a runner from 1st to 2nd with 2nd/3rd empty cannot score a run'
+    assert inning_hits == 0, 'a walk is not a hit'
+    assert runners == {1: 111, 2: 77, 3: 0}, 'the batter should take 1st and the existing runner should be forced to 2nd'
+    assert batting_team.batter_stats[111]['bb'] == 1, 'a walk should increment the batter bb bucket'
+    assert fielding_team.pitcher_stats[2]['bb'] == 1, 'a walk should increment the pitcher bb bucket'
 
 
 # bug-sim-9
@@ -219,12 +219,12 @@ def test_apply_pa_outcome_hbp_updates_batter_bb_but_not_pitcher_bb():
         inning_hits=0,
     )
 
-    assert outs == 2
-    assert runs_on_play == 0
-    assert inning_hits == 0
-    assert runners == {1: 111, 2: 0, 3: 0}
-    assert batting_team.batter_stats[111]['bb'] == 1
-    assert fielding_team.pitcher_stats[2]['bb'] == 0
+    assert outs == 2, 'an HBP does not add an out'
+    assert runs_on_play == 0, 'an HBP with the bases empty (besides the batter) cannot score a run'
+    assert inning_hits == 0, 'an HBP is not a hit'
+    assert runners == {1: 111, 2: 0, 3: 0}, 'the batter should be placed on 1st on an HBP'
+    assert batting_team.batter_stats[111]['bb'] == 1, 'current (bug-sim-9) behavior: HBP is credited to the batter bb bucket'
+    assert fielding_team.pitcher_stats[2]['bb'] == 0, 'current (bug-sim-9) behavior: the pitcher gets no bb credit for an HBP, unlike the batter'
 
 
 def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
@@ -242,17 +242,17 @@ def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
         inning_hits=0,
     )
 
-    assert outs == 1
-    assert runs_on_play == 1
-    assert inning_hits == 1
-    assert runners == {1: 0, 2: 111, 3: 0}
-    assert batting_team.batter_stats[111]['ab'] == 1
-    assert batting_team.batter_stats[111]['h'] == 1
-    assert batting_team.batter_stats[111]['doubles'] == 1
-    assert batting_team.batter_stats[111]['rbi'] == 1
-    assert fielding_team.pitcher_stats[2]['h'] == 1
-    assert fielding_team.pitcher_stats[2]['r'] == 1
-    assert fielding_team.pitcher_stats[2]['er'] == 1
+    assert outs == 1, 'a double does not add an out'
+    assert runs_on_play == 1, 'the runner on 1st should score on a double'
+    assert inning_hits == 1, 'a double should count as one inning hit'
+    assert runners == {1: 0, 2: 111, 3: 0}, 'the batter should end up on 2nd with 1st now empty'
+    assert batting_team.batter_stats[111]['ab'] == 1, 'a double counts as an at-bat'
+    assert batting_team.batter_stats[111]['h'] == 1, 'a double should increment the batter hit bucket'
+    assert batting_team.batter_stats[111]['doubles'] == 1, 'a double should increment the batter doubles bucket'
+    assert batting_team.batter_stats[111]['rbi'] == 1, 'the batter should be credited an RBI for the run scored'
+    assert fielding_team.pitcher_stats[2]['h'] == 1, 'the pitcher should be charged a hit allowed'
+    assert fielding_team.pitcher_stats[2]['r'] == 1, 'the pitcher should be charged the run scored'
+    assert fielding_team.pitcher_stats[2]['er'] == 1, 'the run scored on a double should be earned'
 
 
 def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
@@ -260,10 +260,10 @@ def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
     pa_outcomes = _plate_appearance_outcomes(result)
 
     bb_count = pa_outcomes.count('bb')
-    assert bb_count > 0
-    assert sum(r['bb'] for r in result['batter_stats']) == bb_count
-    assert sum(r['bb'] for r in result['pitcher_stats']) == bb_count
-    assert sum(r['ab'] for r in result['batter_stats']) + bb_count == len(pa_outcomes)
+    assert bb_count > 0, 'the forced outcome cycle includes bb, so at least one should appear in the play-by-play'
+    assert sum(r['bb'] for r in result['batter_stats']) == bb_count, 'total batter bb across a full game should equal the number of walk events'
+    assert sum(r['bb'] for r in result['pitcher_stats']) == bb_count, 'total pitcher bb across a full game should equal the number of walk events'
+    assert sum(r['ab'] for r in result['batter_stats']) + bb_count == len(pa_outcomes), 'every PA is either an AB or a walk, so AB + bb should equal total PAs'
 
 
 # bug-sim-9
@@ -272,10 +272,10 @@ def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
     pa_outcomes = _plate_appearance_outcomes(result)
 
     hbp_count = pa_outcomes.count('hbp')
-    assert hbp_count > 0
-    assert sum(r['bb'] for r in result['batter_stats']) == hbp_count
-    assert sum(r['bb'] for r in result['pitcher_stats']) == 0
-    assert sum(r['ab'] for r in result['batter_stats']) + hbp_count == len(pa_outcomes)
+    assert hbp_count > 0, 'the forced outcome cycle includes hbp, so at least one should appear in the play-by-play'
+    assert sum(r['bb'] for r in result['batter_stats']) == hbp_count, 'current (bug-sim-9) behavior: each HBP adds one to the batter bb bucket'
+    assert sum(r['bb'] for r in result['pitcher_stats']) == 0, 'current (bug-sim-9) behavior: HBP events never add to the pitcher bb bucket'
+    assert sum(r['ab'] for r in result['batter_stats']) + hbp_count == len(pa_outcomes), 'every PA is either an AB or an HBP, so AB + hbp should equal total PAs'
 
 
 def test_outcome_branch_double_increments_hit_buckets(monkeypatch):
@@ -283,11 +283,11 @@ def test_outcome_branch_double_increments_hit_buckets(monkeypatch):
     pa_outcomes = _plate_appearance_outcomes(result)
 
     double_count = pa_outcomes.count('double')
-    assert double_count > 0
-    assert sum(r['h'] for r in result['batter_stats']) == double_count
-    assert sum(r['doubles'] for r in result['batter_stats']) == double_count
-    assert sum(r['h'] for r in result['pitcher_stats']) == double_count
-    assert sum(r['ab'] for r in result['batter_stats']) == len(pa_outcomes)
+    assert double_count > 0, 'the forced outcome cycle includes double, so at least one should appear in the play-by-play'
+    assert sum(r['h'] for r in result['batter_stats']) == double_count, 'total batter hits across a full game should equal the number of doubles'
+    assert sum(r['doubles'] for r in result['batter_stats']) == double_count, 'total batter doubles should equal the number of double events'
+    assert sum(r['h'] for r in result['pitcher_stats']) == double_count, 'total pitcher hits allowed should equal the number of doubles'
+    assert sum(r['ab'] for r in result['batter_stats']) == len(pa_outcomes), 'every PA in this cycle (double or strikeout) is an AB, so total AB should equal total PAs'
 
 
 def test_make_event_builds_expected_shape():
@@ -296,24 +296,24 @@ def test_make_event_builds_expected_shape():
         pitcher_player_id=42, runs_scored=1, outs_before_play=1,
     )
 
-    assert event['matchup_id'] == 'matchup-1'
-    assert event['inning'] == 3
-    assert event['half'] == 'top'
-    assert event['sequence_number'] == 7
-    assert event['event_type'] == 'plate_appearance'
-    assert event['description'] == 'X singles'
-    assert event['pitcher_player_id'] == 42
-    assert event['runs_scored'] == 1
-    assert event['outs_before_play'] == 1
-    assert isinstance(event['id'], str) and event['id']
+    assert event['matchup_id'] == 'matchup-1', 'matchup_id should be passed through unchanged'
+    assert event['inning'] == 3, 'inning should be passed through unchanged'
+    assert event['half'] == 'top', 'half should be passed through unchanged'
+    assert event['sequence_number'] == 7, 'sequence_number should be set from the seq argument'
+    assert event['event_type'] == 'plate_appearance', 'event_type should be passed through unchanged'
+    assert event['description'] == 'X singles', 'description should be passed through unchanged'
+    assert event['pitcher_player_id'] == 42, 'pitcher_player_id should be set from the keyword argument'
+    assert event['runs_scored'] == 1, 'runs_scored should be set from the keyword argument'
+    assert event['outs_before_play'] == 1, 'outs_before_play should be set from the keyword argument'
+    assert isinstance(event['id'], str) and event['id'], 'a fresh uuid string id should be generated when none is supplied'
 
 
 def test_make_event_defaults_pitcher_and_runs_and_generates_id():
     event = _make_event('matchup-1', 1, 'bottom', 1, 'pitching_change', None, outs_before_play=0)
 
-    assert event['pitcher_player_id'] is None
-    assert event['runs_scored'] == 0
-    assert event['id']
+    assert event['pitcher_player_id'] is None, 'pitcher_player_id should default to None when omitted'
+    assert event['runs_scored'] == 0, 'runs_scored should default to 0 when omitted'
+    assert event['id'], 'an id should still be generated even when event_id is omitted'
 
 
 def test_make_event_uses_provided_event_id():
@@ -322,7 +322,7 @@ def test_make_event_uses_provided_event_id():
         outs_before_play=0, event_id='fixed-id',
     )
 
-    assert event['id'] == 'fixed-id'
+    assert event['id'] == 'fixed-id', 'an explicitly supplied event_id should be used instead of generating a new uuid (needed so the PA event and its runner-outcome rows share one id)'
 
 
 def test_apply_pinch_hit_substitution_swaps_in_highest_pa_bench_bat():
@@ -343,16 +343,16 @@ def test_apply_pinch_hit_substitution_swaps_in_highest_pa_bench_bat():
         team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
     )
 
-    assert result_slot is bench_high
-    assert seq == 6
-    assert bench_high not in team.bench
-    assert team.batting_order[0] is bench_high
-    assert bench_high.batting_position == 1
-    assert bench_high.field_position == '1B'
-    assert len(events) == 1
-    assert events[0]['event_type'] == 'substitution'
-    assert events[0]['sequence_number'] == 6
-    assert events[0]['outs_before_play'] == 1
+    assert result_slot is bench_high, 'the bench player with the most pre-lock PA should be chosen as the pinch hitter'
+    assert seq == 6, 'emitting a substitution event should advance the sequence counter by one'
+    assert bench_high not in team.bench, 'the pinch hitter should be removed from the bench once subbed in'
+    assert team.batting_order[0] is bench_high, "the pinch hitter should take over the original batter's lineup slot"
+    assert bench_high.batting_position == 1, 'the pinch hitter should inherit the batting position of the batter they replaced'
+    assert bench_high.field_position == '1B', 'the pinch hitter should inherit the field position of the batter they replaced'
+    assert len(events) == 1, 'exactly one substitution event should be emitted'
+    assert events[0]['event_type'] == 'substitution', 'the emitted event should be a substitution event'
+    assert events[0]['sequence_number'] == 6, 'the substitution event should carry the newly advanced sequence number'
+    assert events[0]['outs_before_play'] == 1, 'the substitution event should record the outs at the time of the substitution'
 
 
 def test_apply_pinch_hit_substitution_noop_below_cap():
@@ -370,10 +370,10 @@ def test_apply_pinch_hit_substitution_noop_below_cap():
         team, batter_slot, {}, 'matchup-1', 3, 'top', outs=0, seq=5,
     )
 
-    assert result_slot is batter_slot
-    assert seq == 5
-    assert events == []
-    assert team.bench == [bench]
+    assert result_slot is batter_slot, 'a batter below their PA cap should not be substituted'
+    assert seq == 5, 'no event means the sequence counter should not advance'
+    assert events == [], 'no substitution should mean no event is emitted'
+    assert team.bench == [bench], 'the bench should be untouched when no substitution occurs'
 
 
 def test_apply_pinch_hit_substitution_noop_with_no_bench():
@@ -390,9 +390,9 @@ def test_apply_pinch_hit_substitution_noop_with_no_bench():
         team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
     )
 
-    assert result_slot is batter_slot
-    assert seq == 5
-    assert events == []
+    assert result_slot is batter_slot, 'a batter at their PA cap with no bench available has no one to sub in, so they should keep batting'
+    assert seq == 5, 'no event means the sequence counter should not advance'
+    assert events == [], 'no substitution should mean no event is emitted'
 
 
 def test_apply_pinch_hit_substitution_exempts_pure_pitcher_at_cap():
@@ -410,10 +410,10 @@ def test_apply_pinch_hit_substitution_exempts_pure_pitcher_at_cap():
         team, batter_slot, {}, 'matchup-1', 3, 'top', outs=1, seq=5,
     )
 
-    assert result_slot is batter_slot
-    assert seq == 5
-    assert events == []
-    assert team.bench == [bench]
+    assert result_slot is batter_slot, 'pure pitchers are exempt from the PA cap and should never be pinch-hit for'
+    assert seq == 5, 'no event means the sequence counter should not advance'
+    assert events == [], 'no substitution should mean no event is emitted'
+    assert team.bench == [bench], 'the bench should be untouched when a pure pitcher is exempted from substitution'
 
 
 def test_apply_pitcher_change_noop_when_caps_not_reached():
@@ -428,10 +428,10 @@ def test_apply_pitcher_change_noop_when_caps_not_reached():
 
     seq, events = _apply_pitcher_change(team, {}, {}, 'matchup-1', 3, 'top', outs=1, seq=5)
 
-    assert seq == 5
-    assert events == []
-    assert team.current_pitcher is current
-    assert team.bullpen == [reliever]
+    assert seq == 5, 'no pitching change means the sequence counter should not advance'
+    assert events == [], 'no pitching change should mean no event is emitted'
+    assert team.current_pitcher is current, 'the pitcher should stay in the game until both caps are reached'
+    assert team.bullpen == [reliever], 'the bullpen should be untouched when no change occurs'
 
 
 def test_apply_pitcher_change_noop_when_bullpen_empty():
@@ -445,9 +445,9 @@ def test_apply_pitcher_change_noop_when_bullpen_empty():
 
     seq, events = _apply_pitcher_change(team, {}, {}, 'matchup-1', 4, 'bottom', outs=0, seq=3)
 
-    assert seq == 3
-    assert events == []
-    assert team.current_pitcher is current
+    assert seq == 3, 'with no reliever available there is nothing to change, so the sequence counter should not advance'
+    assert events == [], 'with no reliever available, no pitching-change event should be emitted'
+    assert team.current_pitcher is current, 'the current pitcher must stay in if there is no reliever to bring in, even past their caps'
 
 
 def test_apply_pitcher_change_swaps_pure_pitcher_batting_slot():
@@ -467,19 +467,19 @@ def test_apply_pitcher_change_swaps_pure_pitcher_batting_slot():
 
     seq, events = _apply_pitcher_change(team, player_info, {}, 'matchup-1', 4, 'bottom', outs=2, seq=7)
 
-    assert team.current_pitcher is reliever
-    assert reliever.sequence == current.sequence + 1
-    assert team.bullpen == []
-    assert team.batting_order[0].player_id == 2
-    assert team.batting_order[0].field_position == 'P'
-    assert team.batting_order[0].bats == 'L'
-    assert team.batting_order[0].batting_position == 9
-    assert seq == 8
-    assert len(events) == 1
-    assert events[0]['event_type'] == 'pitching_change'
-    assert events[0]['pitcher_player_id'] == 2
-    assert events[0]['sequence_number'] == 8
-    assert events[0]['outs_before_play'] == 2
+    assert team.current_pitcher is reliever, 'the reliever should become the current pitcher once caps are reached'
+    assert reliever.sequence == current.sequence + 1, "the reliever's pitching sequence should be one more than the outgoing pitcher's"
+    assert team.bullpen == [], 'the reliever should be removed from the bullpen once brought in'
+    assert team.batting_order[0].player_id == 2, "a pure-pitcher outgoing pitcher's batting slot should be taken over by the incoming reliever"
+    assert team.batting_order[0].field_position == 'P', 'the incoming reliever should occupy the P field position in the batting order'
+    assert team.batting_order[0].bats == 'L', "the batting-order slot should reflect the incoming reliever's own bats handedness"
+    assert team.batting_order[0].batting_position == 9, "the incoming reliever should inherit the outgoing pitcher's batting position"
+    assert seq == 8, 'emitting a pitching-change event should advance the sequence counter by one'
+    assert len(events) == 1, 'exactly one pitching-change event should be emitted'
+    assert events[0]['event_type'] == 'pitching_change', 'the emitted event should be a pitching_change event'
+    assert events[0]['pitcher_player_id'] == 2, 'the pitching-change event should identify the incoming reliever'
+    assert events[0]['sequence_number'] == 8, 'the pitching-change event should carry the newly advanced sequence number'
+    assert events[0]['outs_before_play'] == 2, 'the pitching-change event should record the outs at the time of the change'
 
 
 def test_apply_pitcher_change_keeps_two_way_player_as_dh():
@@ -496,10 +496,10 @@ def test_apply_pitcher_change_keeps_two_way_player_as_dh():
 
     seq, events = _apply_pitcher_change(team, player_info, {}, 'matchup-1', 4, 'bottom', outs=0, seq=1)
 
-    assert seq == 2
-    assert team.batting_order[0].field_position == 'DH'
-    assert team.batting_order[0].player_id == 1  # old pitcher stays in the lineup as DH
-    assert len(events) == 1
+    assert seq == 2, 'emitting a pitching-change event should advance the sequence counter by one'
+    assert team.batting_order[0].field_position == 'DH', 'a two-way outgoing pitcher should convert to DH rather than be removed from the lineup'
+    assert team.batting_order[0].player_id == 1, 'the old pitcher stays in the lineup as DH rather than being replaced by the incoming reliever'
+    assert len(events) == 1, 'exactly one pitching-change event should be emitted'
 
 
 def test_apply_steal_attempt_noop_without_runner_on_first():
@@ -512,10 +512,10 @@ def test_apply_steal_attempt_noop_without_runner_on_first():
         matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
     )
 
-    assert result_runners == runners
-    assert outs == 0
-    assert seq == 4
-    assert events == []
+    assert result_runners == runners, 'with nobody on 1st there is no runner to attempt a steal, so runners should be unchanged'
+    assert outs == 0, 'no steal attempt means no additional out'
+    assert seq == 4, 'no steal attempt means no event, so the sequence counter should not advance'
+    assert events == [], 'no runner on 1st should mean no steal-related event is emitted'
 
 
 def test_apply_steal_attempt_noop_with_two_outs():
@@ -528,10 +528,10 @@ def test_apply_steal_attempt_noop_with_two_outs():
         matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
     )
 
-    assert result_runners == runners
-    assert outs == 2
-    assert seq == 4
-    assert events == []
+    assert result_runners == runners, 'steal attempts are only modeled with fewer than 2 outs, so runners should be unchanged with 2 outs'
+    assert outs == 2, 'no steal attempt means no additional out'
+    assert seq == 4, 'no steal attempt means no event, so the sequence counter should not advance'
+    assert events == [], 'with 2 outs already, no steal-related event should be emitted'
 
 
 def test_apply_steal_attempt_no_attempt_leaves_state_unchanged(monkeypatch):
@@ -545,10 +545,10 @@ def test_apply_steal_attempt_no_attempt_leaves_state_unchanged(monkeypatch):
         matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
     )
 
-    assert result_runners == runners
-    assert outs == 0
-    assert seq == 4
-    assert events == []
+    assert result_runners == runners, 'when _try_steal declines to attempt (returns None), runners should be unchanged'
+    assert outs == 0, 'declining to attempt a steal should not add an out'
+    assert seq == 4, 'declining to attempt a steal means no event, so the sequence counter should not advance'
+    assert events == [], 'declining to attempt a steal should mean no event is emitted'
 
 
 def test_apply_steal_attempt_success_moves_runner_and_credits_sb(monkeypatch):
@@ -563,14 +563,14 @@ def test_apply_steal_attempt_success_moves_runner_and_credits_sb(monkeypatch):
         matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
     )
 
-    assert result_runners == {1: 0, 2: 77, 3: 0}
-    assert outs == 0
-    assert seq == 5
-    assert batting_team.batter_stats[77]['sb'] == 1
-    assert len(events) == 1
-    assert events[0]['event_type'] == 'stolen_base'
-    assert events[0]['sequence_number'] == 5
-    assert events[0]['outs_before_play'] == 0
+    assert result_runners == {1: 0, 2: 77, 3: 0}, 'a successful steal should move the runner from 1st to 2nd'
+    assert outs == 0, 'a successful steal does not add an out'
+    assert seq == 5, 'emitting a stolen-base event should advance the sequence counter by one'
+    assert batting_team.batter_stats[77]['sb'] == 1, 'a successful steal should credit the runner with a stolen base'
+    assert len(events) == 1, 'exactly one stolen-base event should be emitted'
+    assert events[0]['event_type'] == 'stolen_base', 'the emitted event should be a stolen_base event'
+    assert events[0]['sequence_number'] == 5, 'the stolen-base event should carry the newly advanced sequence number'
+    assert events[0]['outs_before_play'] == 0, 'the stolen-base event should record the outs at the time of the steal'
 
 
 def test_apply_steal_attempt_caught_adds_out_and_removes_runner(monkeypatch):
@@ -584,13 +584,13 @@ def test_apply_steal_attempt_caught_adds_out_and_removes_runner(monkeypatch):
         matchup_id='m', inning=1, half='top', seq=4, rng=random.Random(1),
     )
 
-    assert result_runners == {1: 0, 2: 0, 3: 0}
-    assert outs == 2
-    assert seq == 5
-    assert len(events) == 1
-    assert events[0]['event_type'] == 'caught_stealing'
-    assert events[0]['sequence_number'] == 5
-    assert events[0]['outs_before_play'] == 1
+    assert result_runners == {1: 0, 2: 0, 3: 0}, 'a caught-stealing runner should be removed from the bases entirely'
+    assert outs == 2, 'getting caught stealing should add one out'
+    assert seq == 5, 'emitting a caught-stealing event should advance the sequence counter by one'
+    assert len(events) == 1, 'exactly one caught-stealing event should be emitted'
+    assert events[0]['event_type'] == 'caught_stealing', 'the emitted event should be a caught_stealing event'
+    assert events[0]['sequence_number'] == 5, 'the caught-stealing event should carry the newly advanced sequence number'
+    assert events[0]['outs_before_play'] == 1, 'the caught-stealing event should record the outs before the caught-stealing out itself was added'
 
 
 def test_should_change_pitcher_requires_both_caps_reached():
@@ -621,15 +621,15 @@ def test_should_change_pitcher_requires_both_caps_reached():
 
     team.current_pitcher.bf_used = 110
     team.current_pitcher.pitches_used = 90
-    assert team.should_change_pitcher() is False
+    assert team.should_change_pitcher() is False, 'reaching only the BF cap (not the pitch cap) should not trigger a change'
 
     team.current_pitcher.bf_used = 90
     team.current_pitcher.pitches_used = 110
-    assert team.should_change_pitcher() is False
+    assert team.should_change_pitcher() is False, 'reaching only the pitch cap (not the BF cap) should not trigger a change'
 
     team.current_pitcher.bf_used = 110
     team.current_pitcher.pitches_used = 110
-    assert team.should_change_pitcher() is True
+    assert team.should_change_pitcher() is True, 'reaching both the BF cap and the pitch cap should trigger a change'
 
 
 def test_find_slot_falls_back_to_first_batter_when_missing():
@@ -652,7 +652,7 @@ def test_find_slot_falls_back_to_first_batter_when_missing():
     )
 
     slot = _find_slot(123456, team)
-    assert slot.player_id == 10
+    assert slot.player_id == 10, 'a player_id not present in the batting order should fall back to the first batter rather than raising'
 
 
 def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
@@ -665,11 +665,11 @@ def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
     )
 
     batter_row = next(r for r in rows if r['base_before'] == 0)
-    assert batter_row['player_id'] == 50
-    assert batter_row['final_base'] is None
-    assert batter_row['putout_at_base'] == 1
+    assert batter_row['player_id'] == 50, 'the batter row should identify the batter who made the out'
+    assert batter_row['final_base'] is None, 'a batter who is out never reaches a base'
+    assert batter_row['putout_at_base'] == 1, 'an out is currently always recorded as a putout at first base'
 
     runner_on_first = next(r for r in rows if r['base_before'] == 1)
     runner_on_second = next(r for r in rows if r['base_before'] == 2)
-    assert runner_on_first['final_base'] == 1
-    assert runner_on_second['final_base'] == 2
+    assert runner_on_first['final_base'] == 1, 'no double/force play is modeled on outs, so the runner on 1st should stay on 1st'
+    assert runner_on_second['final_base'] == 2, 'no double/force play is modeled on outs, so the runner on 2nd should stay on 2nd'
