@@ -11,6 +11,7 @@ The following refactors are already done and should be treated as baseline:
 - Added domain exceptions in service layer (`MatchupNotFoundError`, `MatchupNotScheduledError`, `SimExecutionError`).
 - Introduced `SimRepository` contract and `DbSimRepository` adapter to reduce direct data-access coupling.
 - Added orchestration and mapping tests in `sim/tests/test_main_orchestration.py`, including a DIP regression test that fails if module-level db access leaks back into orchestration.
+- Extracted the half-inning control flow in `_simulate_half_inning` (`sim/engine.py`) into pure helpers: `_apply_pinch_hit_substitution`, `_apply_pitcher_change`, `_apply_steal_attempt`, and a shared `_make_event` builder used by all event-dict construction sites (substitution, pitching change, stolen base, caught stealing, plate appearance). Behavior — including the known event-sequencing quirk tracked in `bug-sim-6` — was preserved exactly; all 53 existing tests pass unchanged.
 
 ## Remaining High-Value Refactors
 
@@ -30,22 +31,7 @@ Benefits:
 - Better SRP and easier unit testing of each step.
 - Clear orchestration flow with lower cognitive load.
 
-### 2. Continue decomposing `simulate_game` control flow
-
-After extracting `_apply_pa_outcome`, the half-inning loop still has dense logic.
-
-Next extractions:
-
-- Stolen-base/caught-stealing block into `_apply_steal_attempt(...)`.
-- Pitcher-change/substitution emission into dedicated helper(s).
-- Event-row construction into small pure helpers.
-
-Benefits:
-
-- Reduced nesting and easier regression diagnosis.
-- More deterministic unit tests around each behavior boundary.
-
-### 3. Formalize repository boundaries
+### 2. Formalize repository boundaries
 
 `DbSimRepository` currently forwards one-to-one to db functions.
 
@@ -54,7 +40,7 @@ Next step:
 - Move higher-level query composition into repository methods (for example, a single method that returns all matchup simulation inputs).
 - Keep `sim_service` focused on orchestration decisions, not retrieval choreography.
 
-### 4. Add service-focused test coverage around edge rules
+### 3. Add service-focused test coverage around edge rules
 
 Keep existing tests, then add:
 
@@ -64,6 +50,5 @@ Keep existing tests, then add:
 
 ## Suggested Next Iteration Order
 
-1. Extract stolen-base helper from `simulate_game`.
-2. Split `run_matchup` into private service sub-functions.
-3. Add service-level tests for edge rules.
+1. Split `run_matchup` into private service sub-functions.
+2. Add service-level tests for edge rules.

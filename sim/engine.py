@@ -314,6 +314,166 @@ def _try_steal(runner_id: int, batter_stats: dict | None, rng: random.Random) ->
     return rng.random() < success_rate
 
 
+def _make_event(
+    matchup_id: str,
+    inning: int,
+    half: str,
+    seq: int,
+    event_type: str,
+    description: str | None,
+    *,
+    pitcher_player_id: int | None = None,
+    runs_scored: int = 0,
+    outs_before_play: int,
+    event_id: str | None = None,
+) -> dict:
+    return {
+        'id': event_id or str(uuid.uuid4()),
+        'matchup_id': matchup_id,
+        'inning': inning,
+        'half': half,
+        'sequence_number': seq,
+        'event_type': event_type,
+        'pitcher_player_id': pitcher_player_id,
+        'description': description,
+        'runs_scored': runs_scored,
+        'outs_before_play': outs_before_play,
+    }
+
+
+def _apply_pinch_hit_substitution(
+    batting_team: TeamState,
+    batter_slot: BatterSlot,
+    player_info: dict,
+    matchup_id: str,
+    inning: int,
+    half: str,
+    outs: int,
+    seq: int,
+) -> tuple[BatterSlot, int, list[dict]]:
+    """Sub in the best bench bat if batter_slot is at its PA cap. Returns (batter_slot, seq, events)."""
+    is_pure_pitcher = batter_slot.field_position == 'P' and not batter_slot.dh_eligible
+    cap = batter_pa_cap(batter_slot.stats)
+    if is_pure_pitcher or batter_slot.pa_used < cap or cap == 999:
+        return batter_slot, seq, []
+
+    sub = _best_bench_player(batting_team.bench)
+    if sub is None:
+        return batter_slot, seq, []
+
+    slot_idx = (batting_team.current_batting_spot - 1) % 9
+    batting_team.bench.remove(sub)
+    sub.batting_position = batter_slot.batting_position
+    sub.field_position = batter_slot.field_position
+    batting_team.batting_order[slot_idx] = sub
+    out_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
+    sub_name = player_info.get(sub.player_id, {}).get('full_name', 'Unknown')
+    seq += 1
+    event = _make_event(
+        matchup_id, inning, half, seq, 'substitution',
+        f'{sub_name} pinch hits for {out_name}',
+        outs_before_play=outs,
+    )
+    return sub, seq, [event]
+
+
+def _apply_pitcher_change(
+    fielding_team: TeamState,
+    player_info: dict,
+    batter_stats_map: dict,
+    matchup_id: str,
+    inning: int,
+    half: str,
+    outs: int,
+    seq: int,
+) -> tuple[int, list[dict]]:
+    """Swap in a reliever if fielding_team's current pitcher has hit both caps. Returns (seq, events)."""
+    if not fielding_team.should_change_pitcher():
+        return seq, []
+
+    old_pitcher_id = fielding_team.current_pitcher.player_id
+    new_p = fielding_team.change_pitcher()
+    if not new_p:
+        return seq, []
+
+    # Handle the batting-order slot that was occupied by the outgoing pitcher
+    p_slot_idx = fielding_team.sp_batting_slot_index()
+    if p_slot_idx is not None:
+        if _is_dh_eligible(old_pitcher_id, player_info):
+            # Two-way player: stays in lineup as DH
+            fielding_team.batting_order[p_slot_idx].field_position = 'DH'
+        else:
+            # Pure pitcher: incoming reliever takes the P batting slot
+            old_slot = fielding_team.batting_order[p_slot_idx]
+            new_p_info = player_info.get(new_p.player_id, {})
+            fielding_team.batting_order[p_slot_idx] = BatterSlot(
+                batting_position=old_slot.batting_position,
+                player_id=new_p.player_id,
+                field_position='P',
+                bats=new_p_info.get('bats', 'R'),
+                stats=batter_stats_map.get(new_p.player_id),
+                dh_eligible=_is_dh_eligible(new_p.player_id, player_info),
+            )
+
+    seq += 1
+    event = _make_event(
+        matchup_id, inning, half, seq, 'pitching_change', None,
+        pitcher_player_id=new_p.player_id,
+        outs_before_play=outs,
+    )
+    return seq, [event]
+
+
+def _apply_steal_attempt(
+    batting_team: TeamState,
+    fielding_team: TeamState,
+    runners: dict[int, int],
+    outs: int,
+    batter_stats_map: dict,
+    player_info: dict,
+    matchup_id: str,
+    inning: int,
+    half: str,
+    seq: int,
+    rng: random.Random,
+) -> tuple[dict[int, int], int, int, list[dict]]:
+    """Attempt a stolen base when a runner is on 1st with < 2 outs. Returns (runners, outs, seq, events)."""
+    if not (runners[1] and outs < 2):
+        return runners, outs, seq, []
+
+    runner_id = runners[1]
+    runner_stats = _find_batter_stats(runner_id, batting_team, batter_stats_map)
+    sb_result = _try_steal(runner_id, runner_stats, rng)
+    if sb_result is None:
+        return runners, outs, seq, []
+
+    runner_name = player_info.get(runner_id, {}).get('full_name', 'Unknown')
+
+    if sb_result is True:
+        runners[2] = runner_id
+        runners[1] = 0
+        batting_team.record_batter(_find_slot(runner_id, batting_team), sb=1)
+        seq += 1
+        event = _make_event(
+            matchup_id, inning, half, seq, 'stolen_base',
+            describe_stolen_base(runner_name, rng),
+            pitcher_player_id=fielding_team.current_pitcher.player_id,
+            outs_before_play=outs,
+        )
+    else:
+        runners[1] = 0
+        outs += 1
+        seq += 1
+        event = _make_event(
+            matchup_id, inning, half, seq, 'caught_stealing',
+            describe_caught_stealing(runner_name, rng),
+            pitcher_player_id=fielding_team.current_pitcher.player_id,
+            outs_before_play=outs - 1,
+        )
+
+    return runners, outs, seq, [event]
+
+
 def simulate_game(
     matchup_id: str,
     home_lineup: dict,
@@ -378,69 +538,16 @@ def simulate_game(
             batter_slot = batting_team.next_batter()
 
             # Pinch-hit if batter is at PA cap (pure pitchers are exempt — they auto-out forever)
-            is_pure_pitcher = batter_slot.field_position == 'P' and not batter_slot.dh_eligible
-            cap = batter_pa_cap(batter_slot.stats)
-            if not is_pure_pitcher and batter_slot.pa_used >= cap and cap != 999:
-                sub = _best_bench_player(batting_team.bench)
-                if sub is not None:
-                    slot_idx = (batting_team.current_batting_spot - 1) % 9
-                    batting_team.bench.remove(sub)
-                    sub.batting_position = batter_slot.batting_position
-                    sub.field_position = batter_slot.field_position
-                    batting_team.batting_order[slot_idx] = sub
-                    out_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
-                    sub_name = player_info.get(sub.player_id, {}).get('full_name', 'Unknown')
-                    seq += 1
-                    all_events.append({
-                        'id': str(uuid.uuid4()),
-                        'matchup_id': matchup_id,
-                        'inning': inning,
-                        'half': half,
-                        'sequence_number': seq,
-                        'event_type': 'substitution',
-                        'pitcher_player_id': None,
-                        'description': f'{sub_name} pinch hits for {out_name}',
-                        'runs_scored': 0,
-                        'outs_before_play': outs,
-                    })
-                    batter_slot = sub
+            batter_slot, seq, sub_events = _apply_pinch_hit_substitution(
+                batting_team, batter_slot, player_info, matchup_id, inning, half, outs, seq,
+            )
+            all_events.extend(sub_events)
 
             # Pitcher change check
-            if fielding_team.should_change_pitcher():
-                old_pitcher_id = fielding_team.current_pitcher.player_id
-                new_p = fielding_team.change_pitcher()
-                if new_p:
-                    # Handle the batting-order slot that was occupied by the outgoing pitcher
-                    p_slot_idx = fielding_team.sp_batting_slot_index()
-                    if p_slot_idx is not None:
-                        if _is_dh_eligible(old_pitcher_id, player_info):
-                            # Two-way player: stays in lineup as DH
-                            fielding_team.batting_order[p_slot_idx].field_position = 'DH'
-                        else:
-                            # Pure pitcher: incoming reliever takes the P batting slot
-                            old_slot = fielding_team.batting_order[p_slot_idx]
-                            new_p_info = player_info.get(new_p.player_id, {})
-                            fielding_team.batting_order[p_slot_idx] = BatterSlot(
-                                batting_position=old_slot.batting_position,
-                                player_id=new_p.player_id,
-                                field_position='P',
-                                bats=new_p_info.get('bats', 'R'),
-                                stats=batter_stats_map.get(new_p.player_id),
-                                dh_eligible=_is_dh_eligible(new_p.player_id, player_info),
-                            )
-                    seq += 1
-                    all_events.append({
-                        'id': str(uuid.uuid4()),
-                        'matchup_id': matchup_id,
-                        'inning': inning,
-                        'half': half,
-                        'sequence_number': seq,
-                        'event_type': 'pitching_change',
-                        'pitcher_player_id': new_p.player_id,
-                        'description': None,
-                        'runs_scored': 0,
-                        'outs_before_play': outs,
-                    })
+            seq, pitcher_change_events = _apply_pitcher_change(
+                fielding_team, player_info, batter_stats_map, matchup_id, inning, half, outs, seq,
+            )
+            all_events.extend(pitcher_change_events)
 
             outcome = _simulate_pa(batter_slot, fielding_team.current_pitcher, league, rng)
             batter_slot.pa_used += 1
@@ -469,46 +576,11 @@ def simulate_game(
             )
 
             # Attempt stolen base (only if runner on 1st, < 2 outs)
-            if runners[1] and outs < 2:
-                runner_id = runners[1]
-                # Find that batter's stats
-                runner_stats = _find_batter_stats(runner_id, batting_team, batter_stats_map)
-                sb_result = _try_steal(runner_id, runner_stats, rng)
-                if sb_result is True:
-                    runners[2] = runner_id
-                    runners[1] = 0
-                    batting_team.record_batter(_find_slot(runner_id, batting_team), sb=1)
-                    seq += 1
-                    runner_name = player_info.get(runner_id, {}).get('full_name', 'Unknown')
-                    all_events.append({
-                        'id': str(uuid.uuid4()),
-                        'matchup_id': matchup_id,
-                        'inning': inning,
-                        'half': half,
-                        'sequence_number': seq,
-                        'event_type': 'stolen_base',
-                        'pitcher_player_id': fielding_team.current_pitcher.player_id,
-                        'description': describe_stolen_base(runner_name, rng),
-                        'runs_scored': 0,
-                        'outs_before_play': outs,
-                    })
-                elif sb_result is False:
-                    runners[1] = 0
-                    outs += 1
-                    seq += 1
-                    runner_name = player_info.get(runner_id, {}).get('full_name', 'Unknown')
-                    all_events.append({
-                        'id': str(uuid.uuid4()),
-                        'matchup_id': matchup_id,
-                        'inning': inning,
-                        'half': half,
-                        'sequence_number': seq,
-                        'event_type': 'caught_stealing',
-                        'pitcher_player_id': fielding_team.current_pitcher.player_id,
-                        'description': describe_caught_stealing(runner_name, rng),
-                        'runs_scored': 0,
-                        'outs_before_play': outs - 1,
-                    })
+            runners, outs, seq, steal_events = _apply_steal_attempt(
+                batting_team, fielding_team, runners, outs, batter_stats_map, player_info,
+                matchup_id, inning, half, seq, rng,
+            )
+            all_events.extend(steal_events)
 
             inning_runs += runs_on_play
 
@@ -518,18 +590,14 @@ def simulate_game(
 
             batter_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
             pitcher_name = player_info.get(fielding_team.current_pitcher.player_id, {}).get('full_name', 'Unknown')
-            all_events.append({
-                'id': event_id,
-                'matchup_id': matchup_id,
-                'inning': inning,
-                'half': half,
-                'sequence_number': seq,
-                'event_type': 'plate_appearance',
-                'pitcher_player_id': fielding_team.current_pitcher.player_id,
-                'description': describe_pa(outcome, batter_name, pitcher_name, rng),
-                'runs_scored': runs_on_play,
-                'outs_before_play': outs - (1 if is_out else 0),
-            })
+            all_events.append(_make_event(
+                matchup_id, inning, half, seq, 'plate_appearance',
+                describe_pa(outcome, batter_name, pitcher_name, rng),
+                pitcher_player_id=fielding_team.current_pitcher.player_id,
+                runs_scored=runs_on_play,
+                outs_before_play=outs - (1 if is_out else 0),
+                event_id=event_id,
+            ))
 
         _record_line(batting_team, inning, inning_runs, inning_hits)
         return inning_runs
