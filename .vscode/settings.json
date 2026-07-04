@@ -1,12 +1,12 @@
 {
     "python-envs.pythonProjects": [
         {
-            "path": "sim",
+            "path": "scripts",
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         },
         {
-            "path": "scripts",
+            "path": "sim/src",
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         }

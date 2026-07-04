@@ -1,0 +1,5 @@
+{
+  "executionEnvironments": [
+    { "root": "sim/tests", "extraPaths": ["sim/src"] }
+  ]
+}
