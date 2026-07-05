@@ -10,6 +10,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 |---|---|---|---|
 | [bug-sim-1](bug-sim-1.md) | Sim engine | Bullpen never populated — AI manager cannot change pitchers | Open |
 | [bug-sim-2](bug-sim-2.md) | Sim engine | Pre-lock stats used for probabilities and appearance caps; post-lock never read | Open |
+| [bug-sim-11](bug-sim-11.md) | Sim engine | Batter `r` (runs scored) never incremented — box score R column always zero | Open |
 | [bug-api-1](bug-api-1.md) | API server | Server-side batting-order validation far weaker than spec | Open |
 
 ## Medium severity
@@ -42,6 +43,11 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
   independently.
 - `bug-sim-1` and `bug-api-1` are pure correctness gaps independent of the Phase 6
   stats-pipeline work and can be fixed now.
+- `bug-sim-11` and `bug-sim-5` both touch the `hit`/`bb`/`hbp` branches of
+  `_apply_pa_outcome` and the `runs_on_play` value: `bug-sim-5` is pitcher R/ER and
+  batter RBI not attributed on forced bb/hbp runs; `bug-sim-11` is that no batter's own
+  `r` is ever incremented on any play type. A single pass through those branches can
+  fix both.
 - `bug-sim-8` and `bug-sim-10` both touch `_advance_runners`: `bug-sim-8` is runner outcomes
   on outs (not modelled at all); `bug-sim-10` is runner advancement on hits (modelled, but
   deterministic instead of probabilistic). They can be fixed together or independently.
