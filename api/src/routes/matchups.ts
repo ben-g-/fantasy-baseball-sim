@@ -275,13 +275,23 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
       supabase.from('sim_batter_stats').select('team_id, player_id, batting_order_position, sequence_within_spot, ab, r, h, doubles, triples, hr, rbi, bb, k, sb').eq('matchup_id', id).order('batting_order_position'),
       supabase.from('sim_batter_positions').select('player_id, position_sequence, field_position').eq('matchup_id', id).order('position_sequence'),
       supabase.from('sim_pitcher_stats').select('team_id, player_id, pitching_sequence, outs_recorded, h, r, er, bb, k, hr').eq('matchup_id', id).order('pitching_sequence'),
-      supabase.from('sim_events').select('inning, half, sequence_number, event_type, description, runs_scored, outs_before_play').eq('matchup_id', id).order('sequence_number'),
+      supabase.from('sim_events').select('id, inning, half, sequence_number, event_type, description, runs_scored, outs_before_play').eq('matchup_id', id).order('sequence_number'),
     ]);
+
+  const eventIds = (eventsRes.data ?? []).map((e) => e.id);
+  const { data: runnerOutcomeRows } = eventIds.length
+    ? await supabase
+        .from('sim_event_runner_outcomes')
+        .select('sim_event_id, player_id, description')
+        .in('sim_event_id', eventIds)
+        .not('description', 'is', null)
+    : { data: [] as { sim_event_id: string; player_id: number; description: string }[] };
 
   // Collect all player IDs and fetch names
   const allPlayerIds = new Set<number>();
   for (const r of batterStatsRes.data ?? []) allPlayerIds.add(r.player_id);
   for (const r of pitcherStatsRes.data ?? []) allPlayerIds.add(r.player_id);
+  for (const r of runnerOutcomeRows ?? []) allPlayerIds.add(r.player_id);
 
   const { data: playerRows } = await supabase
     .from('players')
@@ -290,6 +300,14 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
   const playerNames: Record<number, string> = Object.fromEntries(
     (playerRows ?? []).map((p) => [p.mlb_id, p.full_name]),
   );
+
+  const runnerNotesByEventId: Record<string, { player: { mlb_id: number; full_name: string }; description: string }[]> = {};
+  for (const r of runnerOutcomeRows ?? []) {
+    (runnerNotesByEventId[r.sim_event_id] ??= []).push({
+      player: { mlb_id: r.player_id, full_name: playerNames[r.player_id] ?? String(r.player_id) },
+      description: r.description,
+    });
+  }
 
   const positionsMap: Record<number, string[]> = {};
   for (const r of batterPositionsRes.data ?? []) {
@@ -351,6 +369,7 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
       sequence_number: e.sequence_number,
       event_type: e.event_type,
       description: e.description,
+      runner_notes: runnerNotesByEventId[e.id] ?? [],
       runs_scored: e.runs_scored,
       outs_before_play: e.outs_before_play,
     })),

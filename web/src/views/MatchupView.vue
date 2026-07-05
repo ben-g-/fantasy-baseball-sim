@@ -418,7 +418,12 @@ const es = computed(() => [
                     {{ group.runsScored }} run{{ group.runsScored !== 1 ? 's' : '' }}
                   </span>
                 </div>
-                <div v-for="ev in group.events" :key="ev.sequence_number" class="pbp-ev">{{ ev.description }}</div>
+                <div v-for="ev in group.events" :key="ev.sequence_number" class="pbp-play">
+                  <div class="pbp-ev">{{ ev.description }}</div>
+                  <div v-for="note in ev.runner_notes" :key="note.player.mlb_id" class="pbp-runner-note">
+                    {{ note.player.full_name }} {{ note.description }}
+                  </div>
+                </div>
               </div>
             </TabPanel>
           </TabPanels>
@@ -1010,9 +1015,20 @@ const es = computed(() => [
   text-transform: none;
 }
 
-.pbp-ev {
-  font-size: 0.85rem;
+.pbp-play {
   padding: 0.3rem 0;
   border-bottom: 1px solid var(--p-surface-100);
+}
+
+.pbp-ev {
+  font-size: 0.85rem;
+}
+
+.pbp-runner-note {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--p-surface-400);
+  padding-left: 1rem;
+  margin-top: 0.15rem;
 }
 </style>

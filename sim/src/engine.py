@@ -12,7 +12,7 @@ from typing import Optional
 
 from outcomes import Outcome
 from stats import LeagueAverages, pa_probabilities, sb_attempt_rate, sb_success_rate, batter_pa_cap, pitcher_bf_cap, pitcher_pitch_cap
-from text_gen import describe_pa, describe_stolen_base, describe_caught_stealing
+from text_gen import describe_pa, describe_runner_outcome, describe_stolen_base, describe_caught_stealing
 
 # Pitches-per-PA average used for pitch count estimation
 _AVG_PITCHES_PER_PA = 3.9
@@ -576,6 +576,7 @@ def simulate_game(
                 outs=outs,
                 inning_hits=inning_hits,
             )
+            ends_half_inning = outs >= 3
 
             # Attempt stolen base (only if runner on 1st, < 2 outs)
             runners, outs, seq, steal_events = _apply_steal_attempt(
@@ -587,7 +588,9 @@ def simulate_game(
             inning_runs += runs_on_play
 
             all_runner_outcomes.extend(
-                _build_runner_outcomes(event_id, batter_slot.player_id, outcome, runners_before, runners)
+                _build_runner_outcomes(
+                    event_id, batter_slot.player_id, outcome, runners_before, runners, ends_half_inning,
+                )
             )
 
             batter_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
@@ -720,12 +723,13 @@ def _build_runner_outcomes(
     outcome: Outcome,
     runners_before: dict[int, int],
     runners_after: dict[int, int],
+    ends_half_inning: bool,
 ) -> list[dict]:
     """Build sim_event_runner_outcomes rows for a plate appearance event."""
     rows = []
     is_out = outcome.is_out
 
-    # Batter (base_before = 0)
+    # Batter (base_before = 0) — narrated on sim_events.description instead, never here.
     if is_out:
         rows.append({
             'sim_event_id': event_id,
@@ -735,6 +739,7 @@ def _build_runner_outcomes(
             'final_base': None,
             'putout_at_base': 1,
             'putout_type': 'force',
+            'description': None,
         })
     elif outcome is Outcome.HR:
         rows.append({
@@ -745,6 +750,7 @@ def _build_runner_outcomes(
             'final_base': 4,
             'putout_at_base': None,
             'putout_type': None,
+            'description': None,
         })
     else:
         batter_final = next((base for base, pid in runners_after.items() if pid == batter_id), None)
@@ -756,6 +762,7 @@ def _build_runner_outcomes(
             'final_base': batter_final,
             'putout_at_base': None,
             'putout_type': None,
+            'description': None,
         })
 
     # Each runner already on base
@@ -774,6 +781,7 @@ def _build_runner_outcomes(
             'final_base': final_base,
             'putout_at_base': None,
             'putout_type': None,
+            'description': describe_runner_outcome(outcome, base_before, final_base, ends_half_inning),
         })
 
     return rows

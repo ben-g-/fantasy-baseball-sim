@@ -100,6 +100,35 @@ def describe_pa(
     return f"{batter_name} — {outcome}"
 
 
+_BASE_NAMES = {1: 'first', 2: 'second', 3: 'third'}
+
+
+def describe_runner_outcome(
+    outcome: Outcome,
+    base_before: int,
+    final_base: int,
+    ends_half_inning: bool,
+) -> str | None:
+    """
+    Narrate a pre-existing runner's outcome on a plate appearance, per the
+    "Baserunner narration rule" in specs/data-model.md: a base change is
+    always narrated; a non-change is narrated only when an advance would
+    typically be expected (a hit, or a groundout that doesn't end the
+    half-inning) so the missed advance is visible rather than silently
+    omitted. The runner's name is not included here — it's rendered
+    separately alongside this clause (see api-spec.md's `runner_notes`).
+    """
+    if final_base != base_before:
+        if final_base == 4:
+            return f'scores from {_BASE_NAMES[base_before]} base'
+        return f'advances to {_BASE_NAMES[final_base]} base'
+
+    advance_expected = outcome.is_hit or (outcome is Outcome.GO and not ends_half_inning)
+    if advance_expected:
+        return f'holds at {_BASE_NAMES[base_before]} base'
+    return None
+
+
 def describe_stolen_base(runner_name: str, rng: random.Random) -> str:
     return _rng_choice(rng, _SB_TEMPLATES).format(runner=runner_name)
 

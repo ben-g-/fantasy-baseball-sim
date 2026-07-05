@@ -733,14 +733,73 @@ def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
         outcome=Outcome.K,
         runners_before={1: 11, 2: 22, 3: 0},
         runners_after={1: 11, 2: 22, 3: 0},
+        ends_half_inning=False,
     )
 
     batter_row = next(r for r in rows if r['base_before'] == 0)
     assert batter_row['player_id'] == 50, 'the batter row should identify the batter who made the out'
     assert batter_row['final_base'] is None, 'a batter who is out never reaches a base'
     assert batter_row['putout_at_base'] == 1, 'an out is currently always recorded as a putout at first base'
+    assert batter_row['description'] is None, "the batter's own outcome is narrated on sim_events.description, not here"
 
     runner_on_first = next(r for r in rows if r['base_before'] == 1)
     runner_on_second = next(r for r in rows if r['base_before'] == 2)
     assert runner_on_first['final_base'] == 1, 'no double/force play is modeled on outs, so the runner on 1st should stay on 1st'
     assert runner_on_second['final_base'] == 2, 'no double/force play is modeled on outs, so the runner on 2nd should stay on 2nd'
+    assert runner_on_first['description'] is None, 'a strikeout never advances a runner, so staying put should not be narrated'
+    assert runner_on_second['description'] is None, 'a strikeout never advances a runner, so staying put should not be narrated'
+
+
+def test_build_runner_outcomes_narrates_an_advance_and_a_score_on_a_single():
+    # Runner on 1st advances to 3rd (0 outs), runner on 2nd scores.
+    rows = _build_runner_outcomes(
+        event_id='evt-2',
+        batter_id=50,
+        outcome=Outcome.SINGLE,
+        runners_before={1: 11, 2: 22, 3: 0},
+        runners_after={1: 50, 2: 0, 3: 11},
+        ends_half_inning=False,
+    )
+
+    runner_on_first = next(r for r in rows if r['base_before'] == 1)
+    assert runner_on_first['description'] == 'advances to third base', (
+        'a runner who took an extra base on a single should have that advance narrated'
+    )
+
+    runner_on_second = next(r for r in rows if r['base_before'] == 2)
+    assert runner_on_second['final_base'] == 4, 'a runner on 2nd should always score on a single'
+    assert runner_on_second['description'] == 'scores from second base', (
+        'a runner who scored should be narrated as scoring from their prior base'
+    )
+
+
+def test_build_runner_outcomes_narrates_holds_on_non_inning_ending_groundout():
+    rows = _build_runner_outcomes(
+        event_id='evt-3',
+        batter_id=50,
+        outcome=Outcome.GO,
+        runners_before={1: 0, 2: 22, 3: 0},
+        runners_after={1: 0, 2: 22, 3: 0},
+        ends_half_inning=False,
+    )
+
+    runner_on_second = next(r for r in rows if r['base_before'] == 2)
+    assert runner_on_second['description'] == 'holds at second base', (
+        'a groundout that does not end the half-inning would typically advance a runner, so a non-advance should be narrated'
+    )
+
+
+def test_build_runner_outcomes_silent_on_inning_ending_groundout():
+    rows = _build_runner_outcomes(
+        event_id='evt-4',
+        batter_id=50,
+        outcome=Outcome.GO,
+        runners_before={1: 0, 2: 22, 3: 0},
+        runners_after={1: 0, 2: 22, 3: 0},
+        ends_half_inning=True,
+    )
+
+    runner_on_second = next(r for r in rows if r['base_before'] == 2)
+    assert runner_on_second['description'] is None, (
+        'a groundout that ends the half-inning is not expected to advance any runner, so a non-advance should not be narrated'
+    )
