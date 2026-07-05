@@ -2,7 +2,31 @@
 
 **Severity:** High
 **Component:** Sim engine
-**Status:** Open
+**Status:** Fixed
+
+## Fix
+
+`_advance_runners` now returns the scoring player IDs (not just a count) as a
+third tuple element, and `_apply_pa_outcome` credits each one's `r` bucket via
+a new `_credit_runs_scored` helper (which resolves the runner's `BatterSlot`
+via the existing `_find_slot`, same as steals). The batter's own run on a HR
+is credited directly in the existing `record_batter` call for the hit branch.
+See `sim/src/engine.py` (`_advance_runners`, `_apply_pa_outcome`,
+`_credit_runs_scored`) and the new/updated tests in
+`sim/tests/test_engine_characterization.py`:
+`test_apply_pa_outcome_double_updates_hits_and_run_accounting` (updated),
+`test_apply_pa_outcome_home_run_credits_batter_and_all_runners_with_runs`,
+`test_apply_pa_outcome_bases_loaded_walk_credits_forced_run_to_runner_on_third`,
+`test_simulate_game_batter_runs_sum_to_team_score`.
+
+Note: while fixing this, a pre-existing, separate defect was spotted in the
+same bases-loaded `bb`/`hbp` branch of `_advance_runners` — the runner
+placement in that branch doesn't actually move anyone (`new_runners[3] =
+runners[3]`, etc., re-assign the same base to the same runner instead of
+advancing, and the batter is never placed on 1st). This wasn't fixed here
+since it's an independent defect from the R-crediting bug (the scorer
+identity used for the `r` credit is read from `runners` before it's
+overwritten, so it's unaffected) — it should be filed and fixed separately.
 
 ## Summary
 

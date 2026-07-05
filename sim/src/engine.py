@@ -27,48 +27,50 @@ _AVG_PITCHES_PER_PA = 3.9
 #   triple: all runners score
 #   hr: all runners score (including batter)
 
-def _advance_runners(outcome: Outcome, runners: dict[int, int], outs: int) -> tuple[dict[int, int], int]:
+def _advance_runners(outcome: Outcome, runners: dict[int, int], outs: int) -> tuple[dict[int, int], int, list[int]]:
     """
     Advance baserunners based on the outcome.
 
     runners: dict mapping base (1,2,3) -> player_id (0 = empty)
-    Returns (new_runners, runs_scored).
+    Returns (new_runners, runs_scored, scoring_player_ids). scoring_player_ids
+    covers only runners who were already on base — it does not include the
+    batter (e.g. on a HR), since the batter isn't part of `runners` here.
     """
     new_runners: dict[int, int] = {1: 0, 2: 0, 3: 0}
-    runs = 0
+    scorers: list[int] = []
 
     if outcome is Outcome.HR:
-        runs = sum(1 for v in runners.values() if v) + 1  # all runners + batter
-        return new_runners, runs
+        scorers = [pid for pid in runners.values() if pid]
+        return new_runners, len(scorers) + 1, scorers  # all runners + batter
 
     if outcome is Outcome.TRIPLE:
-        runs = sum(1 for v in runners.values() if v)
+        scorers = [pid for pid in runners.values() if pid]
         new_runners[3] = -1  # placeholder for batter
-        return new_runners, runs
+        return new_runners, len(scorers), scorers
 
     if outcome is Outcome.DOUBLE:
-        runs = sum(1 for v in runners.values() if v)
+        scorers = [pid for pid in runners.values() if pid]
         # No runners remain after double (all score), batter at 2nd
         new_runners[2] = -1  # placeholder for batter
-        return new_runners, runs
+        return new_runners, len(scorers), scorers
 
     if outcome is Outcome.SINGLE:
         # r3 always scores
         if runners[3]:
-            runs += 1
+            scorers.append(runners[3])
         # r2 scores
         if runners[2]:
-            runs += 1
+            scorers.append(runners[2])
         # r1 advances to 2nd (3rd with 0 outs)
         if runners[1]:
             new_runners[2 if outs >= 1 else 3] = runners[1]
         new_runners[1] = -1  # batter placeholder
-        return new_runners, runs
+        return new_runners, len(scorers), scorers
 
     # bb / hbp — force advances only
     if outcome in (Outcome.BB, Outcome.HBP):
         if runners[1] and runners[2] and runners[3]:
-            runs += 1
+            scorers.append(runners[3])
             new_runners[3] = runners[3]
             new_runners[2] = runners[2]
             new_runners[1] = runners[1]
@@ -85,9 +87,9 @@ def _advance_runners(outcome: Outcome, runners: dict[int, int], outs: int) -> tu
             if runners[3]:
                 new_runners[3] = runners[3]
             new_runners[1] = -1
-        return new_runners, runs
+        return new_runners, len(scorers), scorers
 
-    return new_runners, runs
+    return new_runners, 0, scorers
 
 
 @dataclass
@@ -670,19 +672,21 @@ def _apply_pa_outcome(
         fielding_team.record_pitcher(outs=1, k=(1 if outcome is Outcome.K else 0))
         batting_team.record_batter(batter_slot, ab=1, k=(1 if outcome is Outcome.K else 0))
     elif outcome is Outcome.BB:
-        new_runners, runs_on_play = _advance_runners(Outcome.BB, runners, outs)
+        new_runners, runs_on_play, scorers = _advance_runners(Outcome.BB, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         fielding_team.record_pitcher(bb=1)
         batting_team.record_batter(batter_slot, bb=1)
+        _credit_runs_scored(batting_team, scorers)
     elif outcome is Outcome.HBP:
-        new_runners, runs_on_play = _advance_runners(Outcome.HBP, runners, outs)
+        new_runners, runs_on_play, scorers = _advance_runners(Outcome.HBP, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         fielding_team.record_pitcher()
         batting_team.record_batter(batter_slot, bb=1)  # bb bucket for HBP (on-base)
+        _credit_runs_scored(batting_team, scorers)
     elif outcome.is_hit:
-        new_runners, runs_on_play = _advance_runners(outcome, runners, outs)
+        new_runners, runs_on_play, scorers = _advance_runners(outcome, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         inning_hits += 1
@@ -697,10 +701,17 @@ def _apply_pa_outcome(
         batting_team.record_batter(
             batter_slot, ab=1, h=h_flag,
             doubles=d_flag, triples=t_flag, hr=hr_flag,
-            rbi=runs_on_play,
+            rbi=runs_on_play, r=(1 if hr_flag else 0),
         )
+        _credit_runs_scored(batting_team, scorers)
 
     return outs, runners, inning_hits, runs_on_play
+
+
+def _credit_runs_scored(batting_team: TeamState, scorer_ids: list[int]) -> None:
+    """Credit each already-on-base runner who scored with a run in the box score."""
+    for player_id in scorer_ids:
+        batting_team.record_batter(_find_slot(player_id, batting_team), r=1)
 
 
 def _build_runner_outcomes(

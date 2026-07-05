@@ -231,6 +231,7 @@ def test_apply_pa_outcome_hbp_updates_batter_bb_but_not_pitcher_bb():
 def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
     batting_team = _make_team_state('bat', pitcher_id=1)
     fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order[0].player_id = 77  # register the runner so a run credit can resolve to it
     batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
 
     outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
@@ -254,6 +255,75 @@ def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
     assert fielding_team.pitcher_stats[2]['h'] == 1, 'the pitcher should be charged a hit allowed'
     assert fielding_team.pitcher_stats[2]['r'] == 1, 'the pitcher should be charged the run scored'
     assert fielding_team.pitcher_stats[2]['er'] == 1, 'the run scored on a double should be earned'
+    # bug-sim-11: the runner who scored (not the batter, who ends up on 2nd) should get the run credit
+    assert batting_team.batter_stats[77]['r'] == 1, 'the runner who scored from 1st should be credited with a run'
+    assert batting_team.batter_stats[111]['r'] == 0, 'the batter ends up on 2nd (not home) on a double, so should not be credited a run himself'
+
+
+# bug-sim-11: no code path ever increments a batter's `r` bucket, so the box
+# score Batting section's R column is always zero regardless of runs scored.
+def test_apply_pa_outcome_home_run_credits_batter_and_all_runners_with_runs():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome=Outcome.HR,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 0},
+        outs=0,
+        inning_hits=0,
+    )
+
+    assert runs_on_play == 3, 'a home run with runners on 1st and 2nd should score all three (both runners plus the batter)'
+    assert batting_team.batter_stats[111]['r'] == 1, 'the batter should be credited his own run scored on a home run'
+    assert batting_team.batter_stats[111]['rbi'] == 3, 'the batter should be credited 3 RBI for the two runners plus himself'
+    assert batting_team.batter_stats[77]['r'] == 1, 'the runner who was on 1st should be credited with a run scored on the home run'
+    assert batting_team.batter_stats[88]['r'] == 1, 'the runner who was on 2nd should be credited with a run scored on the home run'
+
+
+# bug-sim-11
+def test_apply_pa_outcome_bases_loaded_walk_credits_forced_run_to_runner_on_third():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(4, 99, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome=Outcome.BB,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 99},
+        outs=0,
+        inning_hits=0,
+    )
+
+    assert runs_on_play == 1, 'a bases-loaded walk forces in exactly one run'
+    assert batting_team.batter_stats[99]['r'] == 1, 'the runner forced home from 3rd should be credited with a run'
+
+
+# bug-sim-11
+def test_simulate_game_batter_runs_sum_to_team_score(monkeypatch):
+    outcomes = cycle([Outcome.HR, Outcome.K, Outcome.K, Outcome.K])
+    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
+    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: None)
+
+    result = simulate_game(**_base_sim_inputs())
+
+    home_batter_runs = sum(r['r'] for r in result['batter_stats'] if r['team_id'] == 'home-team')
+    road_batter_runs = sum(r['r'] for r in result['batter_stats'] if r['team_id'] == 'road-team')
+
+    assert result['final_score']['home'] > 0, 'the forced HR-heavy outcome cycle should produce a nonzero home score, or this invariant check would be vacuous'
+    assert home_batter_runs == result['final_score']['home'], 'summed batter r for the home team should equal the home team final score'
+    assert road_batter_runs == result['final_score']['road'], 'summed batter r for the road team should equal the road team final score'
 
 
 def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
