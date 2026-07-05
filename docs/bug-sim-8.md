@@ -82,6 +82,21 @@ Consequences:
   force outs are one case of the broader "runner outcomes on outs" model.
 - **No runners caught off on lineouts.** A line drive caught with a runner off the base
   never doubles the runner off.
+- **Occupancy-ordering constraint applies here too.** Whatever resolves runner movement on
+  outs must guarantee a trailing runner never advances past (or onto the same base as) a
+  more-advanced runner who doesn't also advance — e.g. a runner tagging from 2nd on a
+  flyout cannot reach 3rd if the runner who started on 3rd holds there instead of scoring.
+  Force-play logic already imposes an ordering in the double/triple-play case (the batter's
+  presence forces the lead runner), but unforced advancement — tag-ups on flyouts, and a
+  trailing runner advancing on a groundout with no runner ahead of him to be forced — has
+  the same independent-sampling risk documented in [bug-sim-10](bug-sim-10.md): sampling
+  each runner's advance separately, without capping trailing runners by where the runner(s)
+  ahead of them land, can produce an invalid state.
+- **Throw-derived secondary advancement is also missing here.** A tag-up throw aimed at
+  retiring one runner can let a different runner take an extra base while the defense is
+  occupied with it — e.g. a runner on 1st takes 2nd while the catcher's throw goes to 3rd
+  trying to catch a tagging runner. This is the same mechanic identified for hits in
+  bug-sim-10 and needs the same sequential (not independent) resolution.
 
 The `sim_event_runner_outcomes` schema already supports multiple putouts per event
 (`putout_type`, `putout_at_base`) and an `intermediate_base`/`final_base` per runner, so
@@ -107,6 +122,11 @@ this is an engine change, not a schema migration.
   advancement on flyouts, situational advancement on groundouts, force logic on grounders
   with a runner on 1st (and 1st+2nd, bases loaded), and doubling a runner off on lineouts.
   Success/failure should be probabilistic (a runner thrown out advancing is an extra out).
+- As with bug-sim-10, per-runner sampling for tag-ups and unforced groundout advancement
+  must resolve from the most-advanced runner backward and cap each trailing runner's
+  advancement by where the runner(s) ahead of him ended up, to avoid invalid states (two
+  runners on one base, or a trailing runner passing one who held). Force-play/DP logic
+  already has a natural ordering; the non-forced advancement cases don't yet.
 - Fix `_build_runner_outcomes` to emit correct `putout_type`/`putout_at_base` per retired
   runner (including the batter), rather than hardcoding `force` at base 1 for all outs, and
   to reflect advanced runners' `final_base`.
@@ -126,3 +146,8 @@ this is an engine change, not a schema migration.
   range rather than being identically zero.
 - Batter putout rows carry a `putout_type` consistent with the out type (not always
   `force`).
+- Invariant, checked across many simulated games: no play — including one that also
+  produces an out — ever results in two runners occupying the same base, or a trailing
+  runner ending up ahead of a runner who started ahead of him and did not score. Same
+  invariant as bug-sim-10; if both bugs are fixed together, verify it holds jointly since a
+  single play can be resolved by both hit- and out-side logic across an inning.
