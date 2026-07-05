@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
+from outcomes import Outcome
 from stats import LeagueAverages, pa_probabilities, sb_attempt_rate, sb_success_rate, batter_pa_cap, pitcher_bf_cap, pitcher_pitch_cap
 from text_gen import describe_pa, describe_stolen_base, describe_caught_stealing
 
@@ -26,9 +27,9 @@ _AVG_PITCHES_PER_PA = 3.9
 #   triple: all runners score
 #   hr: all runners score (including batter)
 
-def _advance_runners(hit_type: str, runners: dict[int, int], outs: int) -> tuple[dict[int, int], int]:
+def _advance_runners(outcome: Outcome, runners: dict[int, int], outs: int) -> tuple[dict[int, int], int]:
     """
-    Advance baserunners based on hit type.
+    Advance baserunners based on the outcome.
 
     runners: dict mapping base (1,2,3) -> player_id (0 = empty)
     Returns (new_runners, runs_scored).
@@ -36,22 +37,22 @@ def _advance_runners(hit_type: str, runners: dict[int, int], outs: int) -> tuple
     new_runners: dict[int, int] = {1: 0, 2: 0, 3: 0}
     runs = 0
 
-    if hit_type == 'hr':
+    if outcome is Outcome.HR:
         runs = sum(1 for v in runners.values() if v) + 1  # all runners + batter
         return new_runners, runs
 
-    if hit_type == 'triple':
+    if outcome is Outcome.TRIPLE:
         runs = sum(1 for v in runners.values() if v)
         new_runners[3] = -1  # placeholder for batter
         return new_runners, runs
 
-    if hit_type == 'double':
+    if outcome is Outcome.DOUBLE:
         runs = sum(1 for v in runners.values() if v)
         # No runners remain after double (all score), batter at 2nd
         new_runners[2] = -1  # placeholder for batter
         return new_runners, runs
 
-    if hit_type == 'single':
+    if outcome is Outcome.SINGLE:
         # r3 always scores
         if runners[3]:
             runs += 1
@@ -65,7 +66,7 @@ def _advance_runners(hit_type: str, runners: dict[int, int], outs: int) -> tuple
         return new_runners, runs
 
     # bb / hbp — force advances only
-    if hit_type in ('bb', 'hbp'):
+    if outcome in (Outcome.BB, Outcome.HBP):
         if runners[1] and runners[2] and runners[3]:
             runs += 1
             new_runners[3] = runners[3]
@@ -288,11 +289,11 @@ def _simulate_pa(
     pitcher_slot: PitcherSlot,
     league: LeagueAverages,
     rng: random.Random,
-) -> str:
-    """Resolve a plate appearance. Returns outcome string."""
+) -> Outcome:
+    """Resolve a plate appearance. Returns the outcome."""
     # Pure pitcher in the P slot: auto-out, no stats needed
     if batter_slot.field_position == 'P' and not batter_slot.dh_eligible:
-        return rng.choices(['k', 'go', 'fo'], weights=[0.20, 0.45, 0.35], k=1)[0]
+        return rng.choices([Outcome.K, Outcome.GO, Outcome.FO], weights=[0.20, 0.45, 0.35], k=1)[0]
     probs = pa_probabilities(
         batter_slot.stats,
         pitcher_slot.stats,
@@ -561,8 +562,7 @@ def simulate_game(
             event_id = str(uuid.uuid4())
 
             runs_on_play = 0
-            is_hit = outcome in ('single', 'double', 'triple', 'hr')
-            is_out = outcome in ('k', 'go', 'fo')
+            is_out = outcome.is_out
             runners_before = dict(runners)  # snapshot before any runner movement
 
             outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
@@ -654,7 +654,7 @@ def _apply_batter_to_runners(runners: dict[int, int], batter_id: int) -> None:
 
 
 def _apply_pa_outcome(
-    outcome: str,
+    outcome: Outcome,
     batter_slot: BatterSlot,
     fielding_team: TeamState,
     batting_team: TeamState,
@@ -664,34 +664,32 @@ def _apply_pa_outcome(
 ) -> tuple[int, dict[int, int], int, int]:
     """Apply one PA outcome and return updated half-inning state."""
     runs_on_play = 0
-    is_out = outcome in ('k', 'go', 'fo')
-    is_hit = outcome in ('single', 'double', 'triple', 'hr')
 
-    if is_out:
+    if outcome.is_out:
         outs += 1
-        fielding_team.record_pitcher(outs=1, k=(1 if outcome == 'k' else 0))
-        batting_team.record_batter(batter_slot, ab=1, k=(1 if outcome == 'k' else 0))
-    elif outcome == 'bb':
-        new_runners, runs_on_play = _advance_runners('bb', runners, outs)
+        fielding_team.record_pitcher(outs=1, k=(1 if outcome is Outcome.K else 0))
+        batting_team.record_batter(batter_slot, ab=1, k=(1 if outcome is Outcome.K else 0))
+    elif outcome is Outcome.BB:
+        new_runners, runs_on_play = _advance_runners(Outcome.BB, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         fielding_team.record_pitcher(bb=1)
         batting_team.record_batter(batter_slot, bb=1)
-    elif outcome == 'hbp':
-        new_runners, runs_on_play = _advance_runners('hbp', runners, outs)
+    elif outcome is Outcome.HBP:
+        new_runners, runs_on_play = _advance_runners(Outcome.HBP, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         fielding_team.record_pitcher()
         batting_team.record_batter(batter_slot, bb=1)  # bb bucket for HBP (on-base)
-    elif is_hit:
+    elif outcome.is_hit:
         new_runners, runs_on_play = _advance_runners(outcome, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
         inning_hits += 1
         h_flag = 1
-        d_flag = 1 if outcome == 'double' else 0
-        t_flag = 1 if outcome == 'triple' else 0
-        hr_flag = 1 if outcome == 'hr' else 0
+        d_flag = 1 if outcome is Outcome.DOUBLE else 0
+        t_flag = 1 if outcome is Outcome.TRIPLE else 0
+        hr_flag = 1 if outcome is Outcome.HR else 0
         fielding_team.record_pitcher(
             h=h_flag, hr=hr_flag,
             r=runs_on_play, er=runs_on_play,
@@ -708,13 +706,13 @@ def _apply_pa_outcome(
 def _build_runner_outcomes(
     event_id: str,
     batter_id: int,
-    outcome: str,
+    outcome: Outcome,
     runners_before: dict[int, int],
     runners_after: dict[int, int],
 ) -> list[dict]:
     """Build sim_event_runner_outcomes rows for a plate appearance event."""
     rows = []
-    is_out = outcome in ('k', 'go', 'fo')
+    is_out = outcome.is_out
 
     # Batter (base_before = 0)
     if is_out:
@@ -727,7 +725,7 @@ def _build_runner_outcomes(
             'putout_at_base': 1,
             'putout_type': 'force',
         })
-    elif outcome == 'hr':
+    elif outcome is Outcome.HR:
         rows.append({
             'sim_event_id': event_id,
             'base_before': 0,

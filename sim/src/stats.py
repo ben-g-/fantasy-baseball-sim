@@ -11,6 +11,8 @@ where b = batter rate, p = pitcher rate, lg = league average rate.
 
 from dataclasses import dataclass
 
+from outcomes import Outcome
+
 # MLB historical averages (per PA) — fallback when no in-season data exists
 MLB_AVG = {
     'bb':     0.0847,
@@ -153,14 +155,23 @@ def _log5(b: float, p: float, lg: float) -> float:
     return num / denom if denom > 0 else lg
 
 
+def _mlb_fallback_probs() -> dict[Outcome, float]:
+    return {o: MLB_AVG[o.value] for o in Outcome}
+
+
 def pa_probabilities(
     batter_stats: dict | None,
     pitcher_stats: dict | None,
     batter_bats: str,
     pitcher_throws: str,
     league: LeagueAverages,
-) -> dict[str, float]:
-    """Return a normalized dict of PA outcome probabilities."""
+) -> dict[Outcome, float]:
+    """Return a normalized dict of PA outcome probabilities.
+
+    The internal rate tables (br/pr/lg) stay keyed by the canonical strings that
+    mirror the DB columns; the public result is keyed by Outcome — the shared
+    vocabulary consumers route on.
+    """
     br = _batter_rates(batter_stats, pitcher_throws)
     pr = _pitcher_rates(pitcher_stats, batter_bats)
     lg = {
@@ -175,11 +186,11 @@ def pa_probabilities(
         'fo':     league.fo,
     }
 
-    combined = {outcome: _log5(br[outcome], pr[outcome], lg[outcome]) for outcome in lg}
+    combined = {o: _log5(br[o.value], pr[o.value], lg[o.value]) for o in Outcome}
     total = sum(combined.values())
     if total <= 0:
-        return MLB_AVG.copy()
-    return {k: v / total for k, v in combined.items()}
+        return _mlb_fallback_probs()
+    return {o: v / total for o, v in combined.items()}
 
 
 def sb_attempt_rate(batter_stats: dict | None) -> float:

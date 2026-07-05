@@ -2,6 +2,8 @@
 
 import random
 
+from outcomes import Outcome
+
 _SINGLE_TEMPLATES = [
     "{batter} singles to {location}",
     "{batter} lines a single to {location}",
@@ -63,7 +65,7 @@ def _rng_choice(rng: random.Random, templates: list[str]) -> str:
 
 
 def describe_pa(
-    outcome: str,
+    outcome: Outcome,
     batter_name: str,
     pitcher_name: str,
     rng: random.Random,
@@ -71,29 +73,29 @@ def describe_pa(
     loc_of = rng.choice(_OUTFIELD_LOCATIONS)
     loc_if = rng.choice(_INFIELD_LOCATIONS)
 
-    if outcome == 'single':
+    if outcome is Outcome.SINGLE:
         tmpl = _rng_choice(rng, _SINGLE_TEMPLATES)
         return tmpl.format(batter=batter_name, location=loc_of)
-    if outcome == 'double':
+    if outcome is Outcome.DOUBLE:
         tmpl = _rng_choice(rng, _DOUBLE_TEMPLATES)
         return tmpl.format(batter=batter_name, location=rng.choice(_LINE_LOCATIONS))
-    if outcome == 'triple':
+    if outcome is Outcome.TRIPLE:
         tmpl = _rng_choice(rng, _TRIPLE_TEMPLATES)
         return tmpl.format(batter=batter_name, location=loc_of)
-    if outcome == 'hr':
+    if outcome is Outcome.HR:
         tmpl = _rng_choice(rng, _HR_TEMPLATES)
         return tmpl.format(batter=batter_name, location=loc_of)
-    if outcome == 'bb':
+    if outcome is Outcome.BB:
         tmpl = _rng_choice(rng, _BB_TEMPLATES)
         return tmpl.format(batter=batter_name, pitcher=pitcher_name)
-    if outcome == 'hbp':
+    if outcome is Outcome.HBP:
         return _rng_choice(rng, _HBP_TEMPLATES).format(batter=batter_name)
-    if outcome == 'k':
+    if outcome is Outcome.K:
         tmpl = _rng_choice(rng, _K_TEMPLATES)
         return tmpl.format(batter=batter_name, pitcher=pitcher_name)
-    if outcome == 'go':
+    if outcome is Outcome.GO:
         return _rng_choice(rng, _GO_TEMPLATES).format(batter=batter_name)
-    if outcome == 'fo':
+    if outcome is Outcome.FO:
         return _rng_choice(rng, _FO_TEMPLATES).format(batter=batter_name)
     return f"{batter_name} — {outcome}"
 

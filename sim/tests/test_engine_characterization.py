@@ -22,6 +22,7 @@ from engine import (
     _make_event,
     simulate_game,
 )
+from outcomes import Outcome
 from stats import LeagueAverages
 
 
@@ -94,7 +95,7 @@ def _make_team_state(team_id: str, pitcher_id: int) -> TeamState:
     )
 
 
-def _run_with_outcome_cycle(monkeypatch, outcomes: list[str]) -> dict:
+def _run_with_outcome_cycle(monkeypatch, outcomes: list[Outcome]) -> dict:
     outcome_cycle = cycle(outcomes)
     monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcome_cycle))
     monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
@@ -111,7 +112,7 @@ def _plate_appearance_outcomes(result: dict) -> list[str]:
 
 
 def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: 'k')
+    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: Outcome.K)
     monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
 
     result = simulate_game(**_base_sim_inputs())
@@ -135,7 +136,7 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
 
 # bug-sim-9: pitcher side never gets `bb` credit for HBP; see docs/bug-sim-9.md.
 def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
-    outcomes = cycle(['bb', 'hbp', 'k', 'k', 'k'])
+    outcomes = cycle([Outcome.BB, Outcome.HBP, Outcome.K, Outcome.K, Outcome.K])
     monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcomes))
     monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
 
@@ -161,7 +162,7 @@ def test_apply_pa_outcome_strikeout_updates_outs_and_k_buckets():
     batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
 
     outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
-        outcome='k',
+        outcome=Outcome.K,
         batter_slot=batter_slot,
         fielding_team=fielding_team,
         batting_team=batting_team,
@@ -186,7 +187,7 @@ def test_apply_pa_outcome_walk_forces_runner_and_increments_bb_buckets():
     batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
 
     outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
-        outcome='bb',
+        outcome=Outcome.BB,
         batter_slot=batter_slot,
         fielding_team=fielding_team,
         batting_team=batting_team,
@@ -210,7 +211,7 @@ def test_apply_pa_outcome_hbp_updates_batter_bb_but_not_pitcher_bb():
     batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
 
     outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
-        outcome='hbp',
+        outcome=Outcome.HBP,
         batter_slot=batter_slot,
         fielding_team=fielding_team,
         batting_team=batting_team,
@@ -233,7 +234,7 @@ def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
     batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
 
     outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
-        outcome='double',
+        outcome=Outcome.DOUBLE,
         batter_slot=batter_slot,
         fielding_team=fielding_team,
         batting_team=batting_team,
@@ -256,7 +257,7 @@ def test_apply_pa_outcome_double_updates_hits_and_run_accounting():
 
 
 def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, ['bb', 'k', 'k', 'k'])
+    result = _run_with_outcome_cycle(monkeypatch, [Outcome.BB, Outcome.K, Outcome.K, Outcome.K])
     pa_outcomes = _plate_appearance_outcomes(result)
 
     bb_count = pa_outcomes.count('bb')
@@ -268,7 +269,7 @@ def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
 
 # bug-sim-9
 def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, ['hbp', 'k', 'k', 'k'])
+    result = _run_with_outcome_cycle(monkeypatch, [Outcome.HBP, Outcome.K, Outcome.K, Outcome.K])
     pa_outcomes = _plate_appearance_outcomes(result)
 
     hbp_count = pa_outcomes.count('hbp')
@@ -279,7 +280,7 @@ def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
 
 
 def test_outcome_branch_double_increments_hit_buckets(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, ['double', 'k', 'k', 'k'])
+    result = _run_with_outcome_cycle(monkeypatch, [Outcome.DOUBLE, Outcome.K, Outcome.K, Outcome.K])
     pa_outcomes = _plate_appearance_outcomes(result)
 
     double_count = pa_outcomes.count('double')
@@ -659,7 +660,7 @@ def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
     rows = _build_runner_outcomes(
         event_id='evt-1',
         batter_id=50,
-        outcome='k',
+        outcome=Outcome.K,
         runners_before={1: 11, 2: 22, 3: 0},
         runners_after={1: 11, 2: 22, 3: 0},
     )
