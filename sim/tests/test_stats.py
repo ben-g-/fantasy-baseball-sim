@@ -6,6 +6,7 @@ Run with: pytest sim/tests/
 import pytest
 from stats import (
     MLB_AVG,
+    MLB_AVG_SB_ATTEMPT_RATE,
     LeagueAverages,
     pa_probabilities,
     sb_attempt_rate,
@@ -227,8 +228,13 @@ class TestPitcherCaps:
 # ── sb_attempt_rate / sb_success_rate ─────────────────────────────────────────
 
 class TestSbRates:
-    def test_attempt_rate_none_returns_zero(self):
-        assert sb_attempt_rate(None) == 0.0
+    def test_attempt_rate_none_returns_mlb_average(self):
+        # No pre-lock stats → fall back to the league-average attempt rate (not 0),
+        # so batters still steal when the sim runs on the MLB fallback path.
+        assert sb_attempt_rate(None) == MLB_AVG_SB_ATTEMPT_RATE, (
+            'a batter with no stats record should use the league-average steal-attempt '
+            'rate as a fallback, matching how PA outcomes fall back to MLB_AVG'
+        )
 
     def test_attempt_rate_no_opportunities(self):
         assert sb_attempt_rate({'sb': 5, 'cs': 1, 'singles': 0, 'bb': 0, 'hbp': 0}) == 0.0

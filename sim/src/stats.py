@@ -26,6 +26,13 @@ MLB_AVG = {
     'fo':     0.2201,
 }
 
+# League-average steal-attempt rate: SB+CS per time reaching first via
+# single/BB/HBP. Fallback for batters with no pre-lock stats, mirroring how
+# MLB_AVG completes the PA-outcome fallback. Without this, a batter with no
+# stats never attempts a steal (attempt rate 0), so the box-score SB column
+# comes out all zeroes whenever the sim runs on the MLB fallback path.
+MLB_AVG_SB_ATTEMPT_RATE = 0.06
+
 
 @dataclass
 class LeagueAverages:
@@ -196,7 +203,7 @@ def pa_probabilities(
 def sb_attempt_rate(batter_stats: dict | None) -> float:
     """Estimated probability that a batter attempts a steal when on 1st or 2nd."""
     if batter_stats is None:
-        return 0.0
+        return MLB_AVG_SB_ATTEMPT_RATE
     sb = batter_stats.get('sb', 0)
     cs = batter_stats.get('cs', 0)
     opps = (
