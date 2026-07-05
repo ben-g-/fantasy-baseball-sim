@@ -2,7 +2,51 @@
 
 **Severity:** Medium
 **Component:** Sim engine, API server
-**Status:** Open
+**Status:** Fixed
+
+## Fix
+
+All four links in the chain were built:
+
+- `supabase/schema.sql` — added a nullable `description TEXT` column to
+  `sim_event_runner_outcomes`.
+- `sim/src/text_gen.py` — added `describe_runner_outcome(outcome, base_before,
+  final_base, ends_half_inning)`, implementing the narration rule from
+  `specs/data-model.md:329-338`. It returns just the clause (e.g. `"advances
+  to third base"`, `"scores from second base"`, `"holds at second base"`),
+  not the player's name — the name is rendered separately alongside it (see
+  `api-spec.md`'s `runner_notes` shape), matching the DB/spec's own examples.
+- `sim/src/engine.py` — `_build_runner_outcomes` now takes an
+  `ends_half_inning` flag and attaches `description` (via
+  `describe_runner_outcome`) to each pre-existing runner's row; the batter's
+  own row (`base_before = 0`) always gets `description: None`, since the
+  batter is narrated on `sim_events.description` instead. The call site in
+  `_simulate_half_inning` computes `ends_half_inning = outs >= 3`
+  immediately after `_apply_pa_outcome` (before the subsequent stolen-base
+  attempt can further change `outs`), since the flag describes whether the
+  plate appearance itself ended the half-inning.
+- `api/src/routes/matchups.ts` — the `/matchups/:id/results` query now also
+  fetches `sim_event_runner_outcomes` (filtered to non-null `description`,
+  keyed by `sim_event_id`), and each `play_by_play` entry gets a
+  `runner_notes` array of `{ player: {mlb_id, full_name}, description }`,
+  per `specs/api-spec.md:414-443`.
+- `web/src/lib/api.ts` / `web/src/views/MatchupView.vue` — added the
+  `SimRunnerNote` type and `runner_notes` field, and the Play-by-Play tab now
+  renders each note as its own indented, italicized, muted-color line
+  beneath the batter's line (`.pbp-runner-note`), per
+  `specs/mini-prd-lineup-and-sim.md:140-148`.
+
+Covered by new/updated tests in `sim/tests/test_text_gen.py` (new file) and
+`sim/tests/test_engine_characterization.py`
+(`test_build_runner_outcomes_for_out_keeps_existing_runners_stationary`
+updated;
+`test_build_runner_outcomes_narrates_an_advance_and_a_score_on_a_single`,
+`test_build_runner_outcomes_narrates_holds_on_non_inning_ending_groundout`,
+`test_build_runner_outcomes_silent_on_inning_ending_groundout` added). The
+API and web changes have no test harness in this repo (neither `api/` nor
+`web/` has a test runner configured) — verified via `tsc --noEmit` /
+`vue-tsc --noEmit` and `eslint` on both, and by reading the rendered
+template against the mini-PRD's example lines rather than an automated test.
 
 ## Summary
 
