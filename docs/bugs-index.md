@@ -26,6 +26,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-8](bug-sim-8.md) | Sim engine | Baserunner outcomes on outs not modelled (no sac flies, double plays, or advancement on outs) | Open |
 | [bug-sim-9](bug-sim-9.md) | Sim engine | HBP credited to batter's `bb` bucket but not the pitcher's | Open |
 | [bug-sim-10](bug-sim-10.md) | Sim engine | Runner advancement on hits is deterministic, not probabilistic | Open |
+| [bug-sim-13](bug-sim-13.md) | Sim engine, API server | Play-by-Play never narrates baserunner outcomes (schema, text-gen, and API all missing) | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
 ## Low severity
@@ -52,6 +53,13 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 - `bug-sim-8` and `bug-sim-10` both touch `_advance_runners`: `bug-sim-8` is runner outcomes
   on outs (not modelled at all); `bug-sim-10` is runner advancement on hits (modelled, but
   deterministic instead of probabilistic). They can be fixed together or independently.
+- `bug-sim-13` is independent of `bug-sim-8`/`bug-sim-10`: those are about the *engine* not
+  computing realistic runner outcomes; `bug-sim-13` is about the existing runner outcomes
+  (whatever they are) never being narrated in the Play-by-Play feed at all. Fixing `bug-sim-8`
+  first would give `bug-sim-13`'s narration more interesting outcomes to describe (sac flies,
+  double plays), but isn't a prerequisite — narration can be built against today's simplified
+  `_build_runner_outcomes` output and will pick up richer outcomes automatically once
+  `bug-sim-8` lands.
 - `bug-sim-12` was found while fixing `bug-sim-11` and touches the same bases-loaded
   `bb`/`hbp` branch of `_advance_runners` as `bug-sim-5`. It's independent of both: the
   `r`-crediting fix for `bug-sim-11` reads scorer identity before this branch's bad
