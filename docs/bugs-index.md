@@ -11,6 +11,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-1](bug-sim-1.md) | Sim engine | Bullpen never populated — AI manager cannot change pitchers | Open |
 | [bug-sim-2](bug-sim-2.md) | Sim engine | Pre-lock stats used for probabilities and appearance caps; post-lock never read | Open |
 | [bug-sim-11](bug-sim-11.md) | Sim engine | Batter `r` (runs scored) never incremented — box score R column always zero | Fixed |
+| [bug-sim-12](bug-sim-12.md) | Sim engine | Bases-loaded walk/HBP doesn't move any runners and drops the batter from the base state | Open |
 | [bug-api-1](bug-api-1.md) | API server | Server-side batting-order validation far weaker than spec | Open |
 
 ## Medium severity
@@ -51,6 +52,11 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 - `bug-sim-8` and `bug-sim-10` both touch `_advance_runners`: `bug-sim-8` is runner outcomes
   on outs (not modelled at all); `bug-sim-10` is runner advancement on hits (modelled, but
   deterministic instead of probabilistic). They can be fixed together or independently.
+- `bug-sim-12` was found while fixing `bug-sim-11` and touches the same bases-loaded
+  `bb`/`hbp` branch of `_advance_runners` as `bug-sim-5`. It's independent of both: the
+  `r`-crediting fix for `bug-sim-11` reads scorer identity before this branch's bad
+  reassignment happens, so it isn't affected by `bug-sim-12`; and `bug-sim-5`'s pitcher
+  R/ER + batter RBI attribution doesn't depend on the base-state bug either.
 - The SP two-week ineligibility item is spec-acknowledged-deferred and not tracked here;
   see the audit discussion.
 - The deadline DST assumption is documented as a code comment in
