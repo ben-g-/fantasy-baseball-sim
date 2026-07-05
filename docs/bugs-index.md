@@ -23,6 +23,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-7](bug-sim-7.md) | Sim engine | Extra-innings termination doesn't match spec (18-inning cap, no forced-HR rule) | Open |
 | [bug-sim-8](bug-sim-8.md) | Sim engine | Baserunner outcomes on outs not modelled (no sac flies, double plays, or advancement on outs) | Open |
 | [bug-sim-9](bug-sim-9.md) | Sim engine | HBP credited to batter's `bb` bucket but not the pitcher's | Open |
+| [bug-sim-10](bug-sim-10.md) | Sim engine | Runner advancement on hits is deterministic, not probabilistic | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
 ## Low severity
@@ -41,6 +42,9 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
   independently.
 - `bug-sim-1` and `bug-api-1` are pure correctness gaps independent of the Phase 6
   stats-pipeline work and can be fixed now.
+- `bug-sim-8` and `bug-sim-10` both touch `_advance_runners`: `bug-sim-8` is runner outcomes
+  on outs (not modelled at all); `bug-sim-10` is runner advancement on hits (modelled, but
+  deterministic instead of probabilistic). They can be fixed together or independently.
 - The SP two-week ineligibility item is spec-acknowledged-deferred and not tracked here;
   see the audit discussion.
 - The deadline DST assumption is documented as a code comment in

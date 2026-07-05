@@ -23,6 +23,12 @@ validation target is a believable box score and play-by-play; a game in which no
 ever advances or is retired on an out is visibly wrong (zero sacrifice flies, zero double
 plays, runners frozen in place on every groundout).
 
+This bug covers runner outcomes on outs specifically. The companion gap on the hits side —
+runner advancement on hits is modelled but deterministic rather than probabilistic — is
+tracked separately as [bug-sim-10](bug-sim-10.md), since it's a narrower, differently-shaped
+problem (advancement exists but has no randomness, vs. not existing at all here). Both bugs
+touch `_advance_runners` and can be fixed together or independently.
+
 ## Spec references
 
 - `specs/build-plan.md` Phase 5 → "Implement base-running resolution". This task must

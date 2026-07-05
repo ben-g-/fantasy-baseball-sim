@@ -162,7 +162,11 @@ These are defined here rather than in the codebase so they are easy to find and 
   - Use seeded placeholder stats for both pre-lock and post-lock stats in this phase
 - Special handling for any pure pitcher in the P batting slot: auto-out every PA with varied out type (approximately 20% strikeout, 45% groundout, 35% flyout); PA appearance cap does not apply. Two-way players in the P slot are simulated normally using their real batting stats. This reflects that pure pitchers essentially never have meaningful batting stats in the current universal DH era
 - Implement base-running resolution:
-  - Stolen bases and runner advancement on hits
+  - Stolen bases
+  - Runner advancement on hits: probabilistic, not fixed by hit type alone — a runner's
+    extra-base advancement (e.g. first-to-third on a single) and risk of being thrown out
+    advancing depend on the situation, and should vary rather than resolving the same way
+    every time
   - Runner outcomes on outs: runners sometimes attempt to advance on flyouts (sacrifice flies) and groundouts, sometimes succeeding and sometimes being thrown out advancing; runners are forced to attempt to advance on ground balls where relevant (force plays, which can produce double or triple plays that retire a lead runner in addition to or instead of the batter); and runners are sometimes caught off their base on lineouts. Runs that score on outs (e.g. a sac fly) are attributed to pitcher R/ER and batter RBI
 - Implement player appearance cap logic:
   - Batters: PA cap table (0→0, 1–3→1, 4–6→2, 7–9→3, 10+→unlimited)
