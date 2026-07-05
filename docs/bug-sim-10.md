@@ -101,6 +101,16 @@ Consequences of the current fixed-rule model:
   no concept of a "throw" as an intermediate event at all — `_advance_runners`
   computes every runner's final base in one deterministic pass, with no
   interaction between runners.
+- **Latent risk once advancement is sampled per runner: base-occupancy
+  ordering isn't enforced anywhere.** A trailing runner can never legally
+  advance past (or onto the same base as) a more-advanced runner who doesn't
+  also advance that far — e.g. if the runner on 2nd holds, the runner
+  originally on 1st cannot reach 2nd himself. The current fixed rule never
+  exposes this, because every hit type advances all runners in lockstep (in
+  the single case, r2/r3 always clear by scoring, so the only runner left to
+  place is r1, and there's nothing left to collide with). This constraint is
+  invisible today but becomes a real risk the moment each runner's
+  advancement is sampled independently — see Suggested fix.
 
 ## Expected vs actual
 
@@ -128,6 +138,14 @@ once a probabilistic model lands.
   in spirit to the existing `sb_attempt_rate`/`sb_success_rate` pattern for
   steals: an attempt/hold decision, then a success/thrown-out decision when a
   runner attempts the extra base.
+- This sampling cannot be fully independent per runner: it must resolve
+  runners in order from most advanced to least (3rd, then 2nd, then 1st,
+  then the batter-runner), and each trailing runner's advancement needs to be
+  capped by where the runner(s) ahead of him ended up — otherwise sampling
+  can produce an invalid state (a trailing runner passing a runner who held,
+  or two runners resolving onto the same base). This ordering/capping
+  requirement is separate from the throw-derived interdependency below, and
+  applies even if that mechanic is deferred.
 - A thrown-out-advancing result should add an out (mirroring how bug-sim-8's
   double/triple plays add outs) and needs a `sim_event_runner_outcomes` row
   with the correct `putout_at_base`/`putout_type`, not just a `final_base`.
@@ -154,6 +172,9 @@ once a probabilistic model lands.
 - Over many simulated games, a runner on 2nd occasionally holds at 2nd on a
   single instead of always advancing, and a runner on 1st occasionally
   scores from 1st on a single — both rare but non-zero.
+- Invariant, checked across many simulated games: no play ever results in two
+  runners occupying the same base, and no trailing runner ever ends up ahead
+  of a runner who started ahead of him and did not score.
 - If the throw-derived secondary advance is implemented in this pass (see
   Suggested fix), at least some games show a second runner or the
   batter-runner advancing an extra base attributable to a throw drawn by a
