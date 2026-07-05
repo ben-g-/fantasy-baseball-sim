@@ -332,8 +332,8 @@ For each row with `base_before` of 1, 2, or 3 on a `plate_appearance` event, the
 
 - **The runner's base changed** (`final_base != base_before`, including scoring or being put out on the bases) — always narrated, e.g. "advances to third base", "scores from second", or (once base-running outs are modelled — see [bug-sim-8](../docs/bug-sim-8.md)) "is out at third base".
 - **The runner's base did not change**, but the play was one where an advance would typically be expected:
-  - the outcome was a hit (single, double, triple, or home run) — always expected, regardless of outs, since a hit never ends the half-inning; or
-  - the outcome was a ball-in-play out (ground-out or fly-out) and `outs_before_play < 2` — i.e. this out did not end the half-inning, so a stranded runner (e.g. left at third on a would-be sac fly) reflects a real missed opportunity rather than the inning simply being over.
+  - the outcome was a hit (single, double, triple, or home run); or
+  - the outcome was a ground-out that did not end the half-inning, which would most often advance any runner who was not out on the play.
 
   This case is narrated as e.g. "holds at second base".
 

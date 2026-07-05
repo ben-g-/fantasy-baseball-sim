@@ -440,7 +440,7 @@ Returns the full sim results for a completed matchup. Available to all managers 
 }
 ```
 
-`runner_notes` is an array with one entry per pre-existing baserunner (never the batter) whose outcome is notable for this play; it's omitted or empty when there's nothing to narrate (e.g. a strikeout with no one on base, or a runner left unforced on a walk). See data-model.md §sim_event_runner_outcomes for the exact rule governing which runners get a note. Each entry's `description` is meant to render as its own line, indented and styled distinctly from the batter's `description` line, beneath the play it belongs to.
+`runner_notes` is an array with one entry per pre-existing baserunner (never the batter) whose outcome is notable for this play; it's omitted or empty when there's nothing to narrate (e.g. a strikeout (which never advances a runner), or a runner left unforced on a walk). See data-model.md §sim_event_runner_outcomes for the exact rule governing which runners get a note. Each entry's `description` is meant to render as its own line, indented and styled distinctly from the batter's `description` line, beneath the play it belongs to.
 
 ---
 

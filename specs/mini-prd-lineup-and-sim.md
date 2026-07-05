@@ -138,13 +138,12 @@ The Matchup Screen transforms after the sim runs to display results. The lineup 
 - Pitching stats table: one row per pitcher showing IP, H, R, ER, BB, K
 
 **Tab 2: Play-by-Play**
-- Chronological text feed of every at-bat outcome, grouped by half-inning (e.g. "Top of the 3rd")
-- Each entry shows batter name and outcome (e.g. "Shohei Ohtani homers to left")
+- Chronological text feed of every notable game event, grouped by half-inning (e.g. "Top of the 3rd")
+- For each plate appearance, there is an entry showing the batter's name and outcome (e.g. "Shohei Ohtani homers to left")
 - Below the batter's line, notable baserunner outcomes each get their own line, indented and styled distinctly from the batter's line (e.g. italicized and/or a muted color) so they read as a secondary detail rather than the headline of the play:
   - "Carson Kelly advances to third base"
   - "Mookie Betts scores from second base"
-  - "Freddie Freeman holds at second base" — shown when an advance would typically be expected (e.g. stranded on third on a ball-in-play out with fewer than two outs, or failing to advance on a base hit), to make missed advancement visible rather than silently omitted
-  - Run totals per inning/game are already shown in the Box Score's line score, so the Play-by-Play feed doesn't repeat an aggregate run count on the batter's line — each scoring runner is named individually instead
+  - "Freddie Freeman holds at second base" — shown when an advance would typically be expected (e.g. a groundout that doesn't end the inning, or a hit), to make missed advancement visible rather than silently omitted
 - Pitching changes in the format: "[Reliever] replaces [Pitcher] pitching"
 - Other notable events (stolen bases, SP transitioning to DH) included as feed items
 
