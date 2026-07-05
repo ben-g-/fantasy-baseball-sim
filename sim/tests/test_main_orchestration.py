@@ -188,7 +188,7 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
         def __init__(self):
             self.calls: list[str] = []
 
-        def fetch_matchup(self, _matchup_id: str) -> dict:
+        def fetch_matchup(self, matchup_id: str) -> dict:
             self.calls.append('fetch_matchup')
             return {
                 'id': matchup_id,
@@ -199,38 +199,38 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
                 'sim_status': 'scheduled',
             }
 
-        def mark_sim_pending(self, _matchup_id: str) -> None:
+        def mark_sim_pending(self, matchup_id: str) -> None:
             self.calls.append('mark_sim_pending')
 
-        def fetch_lineup(self, _matchup_id: str, team_id: str) -> dict:
+        def fetch_lineup(self, matchup_id: str, team_id: str) -> dict:
             self.calls.append('fetch_lineup')
             if team_id == 'home-team':
                 return _make_lineup('home-team', 10, [1, 2, 3, 4, 5, 6, 7, 8, 9])
             return _make_lineup('road-team', 30, [21, 22, 23, 24, 25, 26, 27, 28, 29])
 
-        def fetch_roster_player_ids(self, team_id: str, _league_id: str) -> list[int]:
+        def fetch_roster_player_ids(self, team_id: str, league_id: str) -> list[int]:
             self.calls.append('fetch_roster_player_ids')
             if team_id == 'home-team':
                 return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
             return [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
 
-        def fetch_batter_stats(self, _player_ids: list[int], _sim_date: str) -> dict[int, dict]:
+        def fetch_batter_stats(self, player_ids: list[int], sim_date: str) -> dict[int, dict]:
             self.calls.append('fetch_batter_stats')
             return {}
 
-        def fetch_pitcher_stats(self, _player_ids: list[int], _sim_date: str) -> dict[int, dict]:
+        def fetch_pitcher_stats(self, player_ids: list[int], sim_date: str) -> dict[int, dict]:
             self.calls.append('fetch_pitcher_stats')
             return {}
 
-        def fetch_player_info(self, _player_ids: list[int]) -> dict[int, dict]:
+        def fetch_player_info(self, player_ids: list[int]) -> dict[int, dict]:
             self.calls.append('fetch_player_info')
             return {}
 
-        def fetch_league_batter_averages(self, _sim_date: str) -> dict | None:
+        def fetch_league_batter_averages(self, sim_date: str) -> dict | None:
             self.calls.append('fetch_league_batter_averages')
             return None
 
-        def fetch_league_pitcher_averages(self, _sim_date: str) -> dict | None:
+        def fetch_league_pitcher_averages(self, sim_date: str) -> dict | None:
             self.calls.append('fetch_league_pitcher_averages')
             return None
 
@@ -253,7 +253,7 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
             assert pitcher_stats == []
             assert line_score == []
 
-        def mark_sim_error(self, _matchup_id: str) -> None:
+        def mark_sim_error(self, matchup_id: str) -> None:
             self.calls.append('mark_sim_error')
 
     for name in (
