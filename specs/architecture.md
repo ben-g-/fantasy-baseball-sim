@@ -71,7 +71,7 @@ A lightweight Python module that runs as a post-sim step within the same Python 
 
 Responsibilities:
 - Reads structured sim events from `sim_events` and `sim_event_runner_outcomes`
-- Generates a natural-language description for each event using templates (e.g. "Shohei Ohtani homers to left — 2 runs score", "[Reliever] replaces [Pitcher] pitching")
+- Generates a natural-language description for each event using templates (e.g. "Shohei Ohtani homers to left", "[Reliever] replaces [Pitcher] pitching", "Carson Kelly advances to third base", "Mookie Betts scores from second")
 - Writes the generated descriptions to the `description` column of `sim_events`
 - Keeping text generation separate from the sim engine preserves a clean separation of concerns: the sim engine produces structured facts; the text-generation step turns them into readable narrative
 

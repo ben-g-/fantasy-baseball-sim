@@ -418,12 +418,29 @@ Returns the full sim results for a completed matchup. Available to all managers 
       "sequence_number": 1,
       "event_type": "plate_appearance",
       "description": "Shohei Ohtani singles to center field",
+      "runner_notes": [
+        { "player": { "mlb_id": 200, "full_name": "Carson Kelly" }, "description": "advances to third base" }
+      ],
       "runs_scored": 0,
+      "outs_before_play": 0
+    },
+    {
+      "inning": 1,
+      "half": "top",
+      "sequence_number": 2,
+      "event_type": "plate_appearance",
+      "description": "Mookie Betts hits a double down the left field line",
+      "runner_notes": [
+        { "player": { "mlb_id": 200, "full_name": "Carson Kelly" }, "description": "scores from third base" }
+      ],
+      "runs_scored": 1,
       "outs_before_play": 0
     }
   ]
 }
 ```
+
+`runner_notes` is an array with one entry per pre-existing baserunner (never the batter) whose outcome is notable for this play; it's omitted or empty when there's nothing to narrate (e.g. a strikeout with no one on base, or a runner left unforced on a walk). See data-model.md §sim_event_runner_outcomes for the exact rule governing which runners get a note. Each entry's `description` is meant to render as its own line, indented and styled distinctly from the batter's `description` line, beneath the play it belongs to.
 
 ---
 
