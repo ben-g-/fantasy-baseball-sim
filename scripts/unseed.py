@@ -10,11 +10,25 @@ load_dotenv()
 client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
 
 # Delete in dependency order.
-# lineups.team_id → teams(id) has no ON DELETE CASCADE, so lineups must be
-# deleted before teams. And teams.manager_id → profiles(id) has no ON DELETE
-# CASCADE, so leagues (and their teams) must be deleted before bot auth users.
+# teams and matchups are both independent ON DELETE CASCADE children of
+# leagues, and Postgres doesn't guarantee it cascades matchups before teams.
+# sim_batter_stats/sim_pitcher_stats/sim_line_score/matchups.home_team_id
+# reference teams(id) with no cascade of their own, only cleaned up
+# transitively via matchups' cascade — so matchups must be deleted explicitly
+# first, or a league delete can fail with a dangling teams reference.
+# And teams.manager_id → profiles(id) has no ON DELETE CASCADE, so leagues
+# (and their teams) must be deleted before bot auth users.
+league_names = ['Alpha League', 'Beta League']
+
+print('Deleting matchups...')
+leagues = client.table('leagues').select('id').in_('name', league_names).execute()
+league_ids = [row['id'] for row in leagues.data]
+if league_ids:
+    client.table('matchups').delete().in_('league_id', league_ids).execute()
+print('  Done.')
+
 print('Deleting leagues...')
-client.table('leagues').delete().in_('name', ['Alpha League', 'Beta League']).execute()
+client.table('leagues').delete().in_('name', league_names).execute()
 print('  Done.')
 
 # Now delete bot auth users (cascades to their profiles)
