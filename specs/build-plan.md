@@ -406,6 +406,8 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 ## Deferred (Post-MVP)
 
 - Waiver wire and trade flows
+- AI-generated recap is a premium feature, available only in some leagues. The Recap tab doesn't appear at all for a game in a league without the feature
+- Recap-generator AI is aware of the context of the game (the league standings before and after the game, the players' performances during the fantasy season prior to the game, ...) and chooses in some cases to reference it (e.g. "Kyle Tucker went hitless for the third straight game.", "Bo Bichette continued his hot hitting, improving his average to .299 on the season.", "Gausman's 12 strikeouts were a season high, surpassing the 10 he had against the Thunkers on June 14.")
 - Mobile support
 - Live/real-time sim watching
 - In-game managerial decisions by the human manager
