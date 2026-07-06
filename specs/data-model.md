@@ -420,6 +420,20 @@ Primary key: (matchup_id, team_id, inning)
 
 ---
 
+### sim_recaps
+Short AI-generated narrative recap of the completed sim, produced by the recap generator from the structured results. Feeds the third ("Recap") tab on the post-sim Matchup Screen. Absence of a row for a `matchup_id` means recap generation failed or has not run; it does not indicate a sim failure.
+
+| Column | Type | Notes |
+|---|---|---|
+| matchup_id | UUID | PK; FK to matchups.id |
+| recap_text | text | The generated recap |
+| model | text | Model ID that produced the recap (e.g. `claude-sonnet-5`) |
+| generated_at | timestamptz | |
+
+Primary key: matchup_id
+
+---
+
 ## Data Ownership Summary
 
 | Table | Populated by |
@@ -433,6 +447,7 @@ Primary key: (matchup_id, team_id, inning)
 | batter_pre_lock_stats, pitcher_pre_lock_stats | Data pipeline (captured at batting order lock time) |
 | batter_post_lock_stats, pitcher_post_lock_stats | Data pipeline (captured just before sim runs) |
 | sim_events, sim_event_runner_outcomes, sim_batter_stats, sim_batter_positions, sim_pitcher_stats, sim_line_score | Sim engine (structured data) and text-generation component (description column) |
+| sim_recaps | Recap generator (LLM call via internal provider-agnostic wrapper, post-sim step within the sim service) |
 | matchups.sim_status | Sim engine (updates to sim_pending, then sim_complete) |
 
 ---

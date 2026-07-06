@@ -11,7 +11,7 @@ Phases 1–6 focus on getting that scenario working end-to-end. Phases 7–8 bui
 Automated tests are deferred until the core product behavior is stable enough that tests won't need to be rewritten as the design evolves. The plan is:
 
 - **Phase 5 (sim engine):** Add unit tests for the sim engine — plate appearance resolution, base-running, appearance cap logic. The sim is composed of pure functions and is the highest-value target for automated testing.
-- **Phase 6 (stats pipeline):** Add integration tests for the API route handlers, running against a real test database.
+- **Phase 7 (stats pipeline):** Add integration tests for the API route handlers, running against a real test database.
 - **UI tests:** Deferred post-MVP. The frontend changes most frequently and is the least cost-effective layer to test early.
 
 Dependabot dependency update PRs (added in Phase 3) rely on this test coverage to be mergeable with confidence.
@@ -123,7 +123,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 ### Tasks
 
 **API**
-- GET /matchups/:id — full matchup response including both lineups, computed deadlines, player stats from pre-lock snapshots (use hardcoded placeholder stats for now — a single representative stat line applied to every batter and a separate one applied to every pitcher, defined as constants in the API; replaced with real stats queries in Phase 6)
+- GET /matchups/:id — full matchup response including both lineups, computed deadlines, player stats from pre-lock snapshots (use hardcoded placeholder stats for now — a single representative stat line applied to every batter and a separate one applied to every pitcher, defined as constants in the API; replaced with real stats queries in Phase 7)
 - PATCH /lineups/:id/sp — validate and save SP selection
 - PATCH /lineups/:id/batting-order — validate and save full batting order
 - GET /teams/:id/matchups — for home screen matchup list
@@ -204,7 +204,33 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 6: Stats Pipeline
+## Phase 6: AI-Generated Game Recap
+
+**Goal:** Each completed sim gets a short AI-written narrative recap, displayed as a third tab on the post-sim Matchup Screen.
+
+### Tasks
+
+**Recap generator (Python, runs after text generation within the sim service)**
+- Implement the LLM call behind a small internal wrapper with a provider-agnostic interface — one function, structured game summary in, recap text out. Nothing else in the pipeline (API, frontend, data model) talks to a provider SDK or references a provider-specific concept; a future switch touches only this module
+- Initial implementation: Claude API via the Anthropic Python SDK, model `claude-sonnet-5`, a plain single-turn text completion (no tools, no extended-thinking/reasoning tuning) — a request shape every major provider supports, so a future swap is a like-for-like replacement rather than a redesign. Store the provider's API key as its own env var (e.g. `ANTHROPIC_API_KEY`) on the sim service's Render config, read only inside the wrapper
+- Build a prompt from the completed sim's structured results: final score, line score, notable box score lines (HR, multi-hit games, standout pitching lines), and the play-by-play description text already produced by the Phase 5 text-generation step
+- Wrapper generates a 2–4 paragraph recap written in sportswriter style
+- Write the result to a new `sim_recaps` table (`matchup_id`, `recap_text`, `model`, `generated_at`) — `model` records whatever provider/model string actually produced the recap, so historical recaps stay attributable even after a provider switch
+- Runs synchronously as part of the same sim dispatch call, after the box score / play-by-play / `sim_status = sim_complete` write — a failure here (timeout, API error, refusal) is caught and logged, and simply leaves no `sim_recaps` row; it never flips the matchup to `sim_error` or blocks the box score and play-by-play, since the recap is a non-critical enhancement on top of an already-successful sim
+- No retry logic at MVP: a missing recap is a permanently missing recap for that matchup (the manager still gets the full box score and play-by-play)
+
+**API**
+- GET /matchups/:id/results — add a nullable `recap` string field, populated from `sim_recaps.recap_text` when a row exists
+
+**Frontend — Matchup Screen (post-sim mode)**
+- Third tab, "Recap", alongside Box Score and Play-by-Play
+- Displays the recap text as prose; shows a "Recap unavailable for this game" message when `recap` is null
+
+**Validation:** After a sim runs, the Matchup Screen's Recap tab shows a short, readable narrative summary of the game consistent with the actual box score and play-by-play. If recap generation fails, the Box Score and Play-by-Play tabs are unaffected and the Recap tab shows a fallback message instead of an error.
+
+---
+
+## Phase 7: Stats Pipeline
 
 **Goal:** The sim uses real weekly stats instead of seeded placeholders. The full prediction-game mechanic is operational.
 
@@ -231,9 +257,9 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 7: League & Team Management
+## Phase 8: League & Team Management
 
-**Goal:** Managers can create leagues, invite other managers, and navigate the league and team management features without relying on seed data. Rosters continue to rely on seed data until the draft is built in Phase 7.
+**Goal:** Managers can create leagues, invite other managers, and navigate the league and team management features without relying on seed data. Rosters continue to rely on seed data until the draft is built in Phase 9.
 
 ### Tasks
 
@@ -265,11 +291,11 @@ These are defined here rather than in the codebase so they are easy to find and 
 - League dashboard: standings table (replaces a plain team list) plus current week's matchups; clicking any matchup opens the Matchup Screen in read-only mode for non-participating managers
 - Navigation: league switcher, home screen per league
 
-**Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup. League and team structure no longer requires seed data; rosters still depend on it pending the draft in Phase 7.
+**Validation:** A commissioner can create a league, invite managers, and the season schedule is generated automatically. Managers can browse their league, view rosters, and navigate to their current matchup. League and team structure no longer requires seed data; rosters still depend on it pending the draft in Phase 9.
 
 ---
 
-## Phase 8: Draft
+## Phase 9: Draft
 
 **Goal:** Managers can build their rosters through a snake draft before the season begins.
 
@@ -294,7 +320,7 @@ These are defined here rather than in the codebase so they are easy to find and 
 
 ---
 
-## Phase 9: AI Manager — Strategic In-Game Decisions
+## Phase 10: AI Manager — Strategic In-Game Decisions
 
 **Goal:** The sim engine makes intelligent situational decisions rather than purely mechanical ones, producing more realistic and strategically interesting game outcomes.
 
@@ -322,7 +348,7 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 
 ---
 
-## Phase 10: Production Launch
+## Phase 11: Production Launch
 
 **Goal:** The app is ready for real users — hardened, monitored, and legally compliant.
 
@@ -373,14 +399,13 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 - **SP ineligibility verification:** Confirm that a pitcher who started (or is going to start — keeping in mind that the SP locks before the previous week's sim) in one of the two preceding weeks' sims appears with `is_sp_eligible_this_week: false` in the SP candidate list. Requires a matchup where the SP deadline has not passed and at least one pitcher has a recent start on record in the database.
 - **Home screen "action required" indicator:** Badge on matchup cards when a deadline is approaching and the user has not yet submitted their SP or batting order.
 - **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be number of teammate plate appearances spent on first or second base with the subsequent base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
-- **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Addressed in Phase 9 (AI Manager).
+- **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Addressed in Phase 10 (AI Manager).
 
 ---
 
 ## Deferred (Post-MVP)
 
 - Waiver wire and trade flows
-- AI-generated game recap (third tab on post-sim Matchup Screen)
 - Mobile support
 - Live/real-time sim watching
 - In-game managerial decisions by the human manager

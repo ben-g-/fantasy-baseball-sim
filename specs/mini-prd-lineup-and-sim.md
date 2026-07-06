@@ -187,7 +187,6 @@ The Matchup Screen transforms after the sim runs to display results. The lineup 
 
 ## Future Enhancements (Out of Scope for MVP)
 
-- AI-generated narrative game recap (third tab on post-sim Matchup Screen)
 - Push notifications
 - Mobile support
 - Live/real-time sim watching

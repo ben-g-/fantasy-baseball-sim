@@ -31,6 +31,7 @@ Communication between layers:
 | Realtime | Supabase Realtime (PostgreSQL-backed pub/sub) |
 | Sim engine | Python (FastAPI service + simulation logic) |
 | Text generation | Python module (post-sim step within sim service) |
+| Recap generation | Provider-agnostic LLM client wrapper (post-sim step within sim service, after text generation); initial backing: Anthropic Python SDK |
 | Stat modeling | NumPy, pandas, pybaseball |
 | Data pipeline | Python scripts (scheduled) |
 
@@ -74,6 +75,19 @@ Responsibilities:
 - Generates a natural-language description for each event using templates (e.g. "Shohei Ohtani homers to left", "[Reliever] replaces [Pitcher] pitching", "Carson Kelly advances to third base", "Mookie Betts scores from second")
 - Writes the generated descriptions to the `description` column of `sim_events`
 - Keeping text generation separate from the sim engine preserves a clean separation of concerns: the sim engine produces structured facts; the text-generation step turns them into readable narrative
+
+### Recap Generator (Python)
+
+A second lightweight Python module that runs as a post-sim step within the same Python service, immediately after text generation.
+
+Responsibilities:
+- Builds a prompt from the completed sim's structured results (final score, line score, notable box score lines) plus the play-by-play descriptions the text-generation step just wrote
+- Passes that prompt to an internal LLM client wrapper (single function: text in, text out) and gets back a short (2–4 paragraph) natural-language recap of the game
+- Writes the recap, and the name of the model that produced it, to the `sim_recaps` table
+- Runs synchronously in the same request as the sim and text generation, since sim dispatch already happens on a batch cron schedule rather than in response to a user action — there is no latency-sensitive caller waiting on the HTTP response
+- Failures (API error, timeout, refusal) are caught and logged; they leave `sim_recaps` without a row for that matchup but never fail the sim itself or block the box score / play-by-play, since the recap is a non-critical enhancement layered on top of an already-successful sim
+
+**Provider independence:** The LLM client wrapper is the *only* place in the codebase that imports a provider SDK or references a provider-specific request shape. The recap generator, the API layer, the data model, and the frontend all deal only in plain prompt text in / recap text out — none of them know or care which provider is behind the wrapper. The initial implementation uses the Claude API (Anthropic Python SDK, model `claude-sonnet-5`) for prose quality, cost, and latency, but the call itself is a plain single-turn text completion with no tools and no provider-specific tuning (e.g. extended thinking, prompt caching) — a shape every major LLM provider supports — so switching providers or models later means changing the wrapper's implementation, not the design.
 
 ### Database (PostgreSQL via Supabase)
 
@@ -209,15 +223,16 @@ Together these guarantee the 30th inning can never end tied — a tie is immedia
 3. For each matchup scheduled for that time, the API sets the matchup status to `sim_pending` and makes a direct HTTP POST to the Python sim service
 4. The Python sim service fetches both teams' locked lineups, full rosters, and weekly player stats from PostgreSQL
 5. The sim service runs the simulation, runs the text-generation step, and writes the play-by-play event log and box score to PostgreSQL
-6. The sim service returns a success response; the API sets the matchup status to `sim_complete`
-7. Supabase Realtime notifies subscribed clients; the Matchup Screen transitions to post-sim mode
+6. The sim service calls the Claude API to generate a narrative recap and writes it to `sim_recaps`; a failure at this step is logged but does not affect the outcome of the sim
+7. The sim service returns a success response; the API sets the matchup status to `sim_complete`
+8. Supabase Realtime notifies subscribed clients; the Matchup Screen transitions to post-sim mode
 
 ### 5. Results Display
 
 1. Client requests `GET /matchups/:id/results`
-2. API fetches the box score and play-by-play event log from PostgreSQL
+2. API fetches the box score, play-by-play event log, and recap (if present) from PostgreSQL
 3. API returns structured results to the client
-4. Client renders the post-sim Matchup Screen (Box Score and Play-by-Play tabs)
+4. Client renders the post-sim Matchup Screen (Box Score, Play-by-Play, and Recap tabs)
 
 ---
 
@@ -229,6 +244,13 @@ Together these guarantee the 30th inning can never end tied — a tie is immedia
 - **Used for:** Player master data (name, MLB ID, positions, handedness, team); weekly performance stats including PA, BF, pitch counts, and stat lines
 - **Access pattern:** Python data pipeline scripts, triggered on a schedule tightly coupled to the sim run time
 - **Fallback:** `pybaseball` library provides an alternative access path to Baseball Reference and FanGraphs data if needed
+
+### LLM API (currently Claude / Anthropic)
+
+- **Used for:** Generating the AI game recap from structured sim results
+- **Access pattern:** Python sim service, via the internal LLM client wrapper described under Recap Generator above, as a synchronous post-sim step after text generation
+- **Current provider:** Anthropic, via the Anthropic Python SDK (model `claude-sonnet-5`) — an implementation detail of the wrapper, not something any other component depends on
+- **Failure handling:** A failed or refused call is logged and simply results in no recap for that matchup; it does not affect `sim_status` or any other part of the sim response
 
 ---
 
@@ -254,4 +276,3 @@ Together these guarantee the 30th inning can never end tied — a tie is immedia
 - Push notifications
 - Mobile client
 - In-game managerial decisions by the human manager
-- AI-generated game recap (post-MVP)
