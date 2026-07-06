@@ -105,6 +105,27 @@ def test_run_matchup_happy_path_orchestrates_and_writes_results(monkeypatch):
 
     monkeypatch.setattr(sim_service.db, 'write_results', fake_write_results)
 
+    monkeypatch.setattr(
+        sim_service.db,
+        'fetch_team_names',
+        lambda team_ids: {'home-team': 'Home Squad', 'road-team': 'Road Squad'},
+    )
+    captured_prompt: dict = {}
+
+    def fake_generate_text(prompt):
+        captured_prompt['value'] = prompt
+        return 'A thrilling 2-1 game.'
+
+    monkeypatch.setattr(sim_service.llm_client, 'generate_text', fake_generate_text)
+
+    def fake_write_recap(matchup_id_arg, recap_text, model):
+        call_log.append('write_recap')
+        assert matchup_id_arg == matchup_id
+        assert recap_text == 'A thrilling 2-1 game.'
+        assert model == sim_service.llm_client.MODEL_ID
+
+    monkeypatch.setattr(sim_service.db, 'write_recap', fake_write_recap)
+
     response = sim_service.run_matchup(matchup_id)
 
     assert response == {'matchup_id': matchup_id, 'final_score': {'home': 2, 'road': 1}}
@@ -115,6 +136,80 @@ def test_run_matchup_happy_path_orchestrates_and_writes_results(monkeypatch):
 
     assert 'mark_sim_error' not in call_log
     assert call_log.index('mark_sim_pending') < call_log.index('write_results')
+    assert call_log.index('write_results') < call_log.index('write_recap'), (
+        "the recap must be generated after the box score / play-by-play are written, "
+        "so a recap failure can never affect the results already persisted"
+    )
+    assert 'Home Squad' in captured_prompt['value'] and 'Road Squad' in captured_prompt['value'], (
+        "the recap prompt should be built from the team names fetched via the repository, "
+        "not left as opaque team IDs"
+    )
+
+
+def test_run_matchup_recap_failure_is_isolated_from_sim_success(monkeypatch):
+    matchup_id = 'matchup-recap-fail'
+    matchup = {
+        'id': matchup_id,
+        'league_id': 'league-1',
+        'home_team_id': 'home-team',
+        'road_team_id': 'road-team',
+        'sim_scheduled_at': '2026-07-01T12:00:00Z',
+        'sim_status': 'scheduled',
+    }
+
+    home_lineup = _make_lineup('home-team', 10, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    road_lineup = _make_lineup('road-team', 30, [21, 22, 23, 24, 25, 26, 27, 28, 29])
+
+    call_log: list[str] = []
+
+    monkeypatch.setattr(sim_service.db, 'fetch_matchup', lambda _mid: matchup)
+    monkeypatch.setattr(sim_service.db, 'mark_sim_pending', lambda _mid: call_log.append('mark_sim_pending'))
+    monkeypatch.setattr(sim_service.db, 'mark_sim_error', lambda _mid: call_log.append('mark_sim_error'))
+    monkeypatch.setattr(sim_service.db, 'fetch_lineup', lambda _mid, team_id: home_lineup if team_id == 'home-team' else road_lineup)
+    monkeypatch.setattr(
+        sim_service.db,
+        'fetch_roster_player_ids',
+        lambda team_id, _league_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] if team_id == 'home-team' else [21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+    )
+    monkeypatch.setattr(sim_service.db, 'fetch_batter_stats', lambda _ids, _date: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_pitcher_stats', lambda _ids, _date: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_player_info', lambda _ids: {})
+    monkeypatch.setattr(sim_service.db, 'fetch_league_batter_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service.db, 'fetch_league_pitcher_averages', lambda _date: None)
+    monkeypatch.setattr(sim_service, 'simulate_game', lambda **_kwargs: {
+        'events': [],
+        'runner_outcomes': [],
+        'batter_stats': [],
+        'batter_positions': [],
+        'pitcher_stats': [],
+        'line_score': [],
+        'final_score': {'home': 2, 'road': 1},
+    })
+    monkeypatch.setattr(sim_service.db, 'write_results', lambda **_kwargs: call_log.append('write_results'))
+    monkeypatch.setattr(sim_service.db, 'fetch_team_names', lambda _ids: {'home-team': 'Home Squad', 'road-team': 'Road Squad'})
+
+    def fake_generate_text(_prompt):
+        raise RuntimeError('LLM request timed out')
+
+    monkeypatch.setattr(sim_service.llm_client, 'generate_text', fake_generate_text)
+    monkeypatch.setattr(sim_service.db, 'write_recap', lambda *_a, **_k: call_log.append('write_recap'))
+
+    print_exc_calls: list[int] = []
+    monkeypatch.setattr(sim_service.traceback, 'print_exc', lambda: print_exc_calls.append(1))
+
+    response = sim_service.run_matchup(matchup_id)
+
+    assert response == {'matchup_id': matchup_id, 'final_score': {'home': 2, 'road': 1}}, (
+        "a recap generation failure must not prevent run_matchup from returning its normal "
+        "success response"
+    )
+    assert 'write_recap' not in call_log, "a failed generate_text call should never reach write_recap"
+    assert 'mark_sim_error' not in call_log, (
+        "a recap failure must never flip the matchup to sim_error — it's a non-critical "
+        "enhancement on top of an already-successful sim"
+    )
+    assert call_log == ['mark_sim_pending', 'write_results']
+    assert print_exc_calls == [1], "the recap failure should still be logged, not silently dropped"
 
 
 def test_run_matchup_marks_error_and_raises_execution_error(monkeypatch):
@@ -234,6 +329,14 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
             self.calls.append('fetch_league_pitcher_averages')
             return None
 
+        def fetch_team_names(self, team_ids: list[str]) -> dict[str, str]:
+            self.calls.append('fetch_team_names')
+            return {'home-team': 'Home Squad', 'road-team': 'Road Squad'}
+
+        def write_recap(self, matchup_id: str, recap_text: str, model: str) -> None:
+            self.calls.append('write_recap')
+            assert matchup_id == 'matchup-dip'
+
         def write_results(
             self,
             matchup_id: str,
@@ -266,6 +369,8 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
         'fetch_player_info',
         'fetch_league_batter_averages',
         'fetch_league_pitcher_averages',
+        'fetch_team_names',
+        'write_recap',
         'write_results',
         'mark_sim_error',
     ):
@@ -276,6 +381,7 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
                 AssertionError(f'module db should not be used: {_name}')
             ),
         )
+    monkeypatch.setattr(sim_service.llm_client, 'generate_text', lambda _prompt: 'A thrilling 3-2 game.')
 
     fake_repo = FakeRepo()
 
@@ -295,6 +401,10 @@ def test_run_matchup_uses_injected_repository_instead_of_module_db(monkeypatch):
 
     assert result == {'matchup_id': 'matchup-dip', 'final_score': {'home': 3, 'road': 2}}
     assert 'write_results' in fake_repo.calls
+    assert 'write_recap' in fake_repo.calls, (
+        "recap generation should go through the injected repository, same as every other "
+        "write in this orchestration — never falling back to the module-level db"
+    )
     assert 'mark_sim_error' not in fake_repo.calls
 
 

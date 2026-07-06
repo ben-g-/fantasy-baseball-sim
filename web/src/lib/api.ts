@@ -202,6 +202,7 @@ export interface SimResults {
     road: { batting: SimBatterStat[]; pitching: SimPitcherStat[] }
   }
   play_by_play: SimPlayByPlayEvent[]
+  recap: string | null
 }
 
 export function getMatchupResults(id: string): Promise<SimResults> {

@@ -269,13 +269,14 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
     return;
   }
 
-  const [lineScoreRes, batterStatsRes, batterPositionsRes, pitcherStatsRes, eventsRes] =
+  const [lineScoreRes, batterStatsRes, batterPositionsRes, pitcherStatsRes, eventsRes, recapRes] =
     await Promise.all([
       supabase.from('sim_line_score').select('team_id, inning, runs, hits, errors').eq('matchup_id', id).order('inning'),
       supabase.from('sim_batter_stats').select('team_id, player_id, batting_order_position, sequence_within_spot, ab, r, h, doubles, triples, hr, rbi, bb, k, sb').eq('matchup_id', id).order('batting_order_position'),
       supabase.from('sim_batter_positions').select('player_id, position_sequence, field_position').eq('matchup_id', id).order('position_sequence'),
       supabase.from('sim_pitcher_stats').select('team_id, player_id, pitching_sequence, outs_recorded, h, r, er, bb, k, hr').eq('matchup_id', id).order('pitching_sequence'),
       supabase.from('sim_events').select('id, inning, half, sequence_number, event_type, description, runs_scored, outs_before_play').eq('matchup_id', id).order('sequence_number'),
+      supabase.from('sim_recaps').select('recap_text').eq('matchup_id', id).maybeSingle(),
     ]);
 
   const eventIds = (eventsRes.data ?? []).map((e) => e.id);
@@ -370,6 +371,7 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
       runs_scored: e.runs_scored,
       outs_before_play: e.outs_before_play,
     })),
+    recap: recapRes.data?.recap_text ?? null,
   });
 });
 

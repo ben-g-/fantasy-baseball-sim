@@ -4,6 +4,8 @@ import traceback
 from typing import Callable, Protocol
 
 import db
+import llm_client
+import recap
 from engine import simulate_game
 from stats import LeagueAverages
 
@@ -28,6 +30,10 @@ class SimRepository(Protocol):
     def fetch_league_batter_averages(self, sim_date: str) -> dict | None: ...
 
     def fetch_league_pitcher_averages(self, sim_date: str) -> dict | None: ...
+
+    def fetch_team_names(self, team_ids: list[str]) -> dict[str, str]: ...
+
+    def write_recap(self, matchup_id: str, recap_text: str, model: str) -> None: ...
 
     def write_results(
         self,
@@ -73,6 +79,12 @@ class DbSimRepository:
     def fetch_league_pitcher_averages(self, sim_date: str) -> dict | None:
         return db.fetch_league_pitcher_averages(sim_date)
 
+    def fetch_team_names(self, team_ids: list[str]) -> dict[str, str]:
+        return db.fetch_team_names(team_ids)
+
+    def write_recap(self, matchup_id: str, recap_text: str, model: str) -> None:
+        db.write_recap(matchup_id, recap_text, model)
+
     def write_results(
         self,
         matchup_id: str,
@@ -114,6 +126,31 @@ class SimExecutionError(Exception):
 
 
 DEFAULT_REPOSITORY: SimRepository = DbSimRepository()
+
+
+def _generate_and_write_recap(
+    repo: SimRepository,
+    matchup: dict,
+    result: dict,
+    player_info: dict[int, dict],
+) -> None:
+    home_team_id = matchup['home_team_id']
+    road_team_id = matchup['road_team_id']
+    team_names = repo.fetch_team_names([home_team_id, road_team_id])
+
+    prompt = recap.build_prompt(
+        home_team_name=team_names.get(home_team_id, 'Home'),
+        road_team_name=team_names.get(road_team_id, 'Road'),
+        final_score=result['final_score'],
+        home_batter_stats=[b for b in result['batter_stats'] if b['team_id'] == home_team_id],
+        road_batter_stats=[b for b in result['batter_stats'] if b['team_id'] == road_team_id],
+        home_pitcher_stats=[p for p in result['pitcher_stats'] if p['team_id'] == home_team_id],
+        road_pitcher_stats=[p for p in result['pitcher_stats'] if p['team_id'] == road_team_id],
+        play_by_play=[e['description'] for e in result['events'] if e.get('description')],
+        player_info=player_info,
+    )
+    recap_text = llm_client.generate_text(prompt)
+    repo.write_recap(matchup['id'], recap_text, llm_client.MODEL_ID)
 
 
 def run_matchup(
@@ -191,6 +228,16 @@ def run_matchup(
             pitcher_stats=result['pitcher_stats'],
             line_score=result['line_score'],
         )
+
+        # Recap generation is a non-critical enhancement on top of an already-
+        # successful sim: a failure here (timeout, API error, refusal) is logged
+        # and simply leaves no sim_recaps row — it must never reach the except
+        # clause below, which would incorrectly mark this successful sim as
+        # errored.
+        try:
+            _generate_and_write_recap(repo, matchup, result, player_info)
+        except Exception:
+            traceback.print_exc()
 
         return {
             'matchup_id': matchup_id,

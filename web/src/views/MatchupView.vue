@@ -228,6 +228,11 @@ const pbpGroups = computed(() => {
   return groups
 })
 
+const recapParagraphs = computed(() => {
+  if (!results.value?.recap) return []
+  return results.value.recap.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+})
+
 function sortedBatting(rows: SimResults['box_score']['home']['batting']) {
   return [...rows].sort((a, b) =>
     a.batting_order_position !== b.batting_order_position
@@ -317,6 +322,7 @@ const es = computed(() => [
           <TabList>
             <Tab value="box">Box Score</Tab>
             <Tab value="pbp">Play-by-Play</Tab>
+            <Tab value="recap">Recap</Tab>
           </TabList>
           <TabPanels>
             <TabPanel value="box">
@@ -425,6 +431,15 @@ const es = computed(() => [
                   </div>
                 </div>
               </div>
+            </TabPanel>
+
+            <TabPanel value="recap">
+              <div v-if="recapParagraphs.length" class="recap-text">
+                <p v-for="(para, i) in recapParagraphs" :key="i">{{ para }}</p>
+              </div>
+              <p v-else class="text-color-secondary" style="font-style: italic;">
+                Recap unavailable for this game.
+              </p>
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -1030,5 +1045,21 @@ const es = computed(() => [
   color: var(--p-surface-400);
   padding-left: 1rem;
   margin-top: 0.15rem;
+}
+
+/* ── Recap ─────────────────────────────────────────────────────────────────── */
+
+.recap-text {
+  max-width: 42rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.recap-text p {
+  margin: 0 0 1rem;
+}
+
+.recap-text p:last-child {
+  margin-bottom: 0;
 }
 </style>

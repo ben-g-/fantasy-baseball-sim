@@ -160,6 +160,21 @@ def fetch_league_pitcher_averages(sim_date: str) -> dict | None:
     return totals if totals['bf'] > 0 else None
 
 
+def fetch_team_names(team_ids: list[str]) -> dict[str, str]:
+    sb = get_client()
+    rows = sb.table('teams').select('id, name').in_('id', team_ids).execute()
+    return {r['id']: r['name'] for r in rows.data}
+
+
+def write_recap(matchup_id: str, recap_text: str, model: str) -> None:
+    sb = get_client()
+    sb.table('sim_recaps').insert({
+        'matchup_id': matchup_id,
+        'recap_text': recap_text,
+        'model': model,
+    }).execute()
+
+
 def mark_sim_pending(matchup_id: str) -> None:
     get_client().table('matchups').update({'sim_status': 'sim_pending'}).eq('id', matchup_id).execute()
 

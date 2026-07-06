@@ -314,6 +314,13 @@ CREATE TABLE sim_line_score (
   PRIMARY KEY (matchup_id, team_id, inning)
 );
 
+CREATE TABLE sim_recaps (
+  matchup_id   UUID        PRIMARY KEY REFERENCES matchups(id) ON DELETE CASCADE,
+  recap_text   TEXT        NOT NULL,
+  model        TEXT        NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 
 -- ============================================================
 -- Indexes
@@ -351,6 +358,7 @@ ALTER TABLE sim_batter_stats          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sim_batter_positions      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sim_pitcher_stats         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sim_line_score            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sim_recaps                ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
