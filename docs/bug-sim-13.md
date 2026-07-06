@@ -31,24 +31,31 @@ All four links in the chain were built:
 - `api/src/routes/matchups.ts` — the `/matchups/:id/results` query now also
   fetches `sim_event_runner_outcomes` (filtered to non-null `description`,
   keyed by `sim_event_id`), and each `play_by_play` entry gets a
-  `runner_notes` array of `{ player: {mlb_id, full_name}, description }`,
-  per `specs/api-spec.md:414-443`. `description` is passed through verbatim;
-  `player` is included for identification (e.g. a list key) but the API does
-  no string assembly.
-- `web/src/lib/api.ts` / `web/src/views/MatchupView.vue` — added the
-  `SimRunnerNote` type and `runner_notes` field, and the Play-by-Play tab now
-  renders each note's `description` directly (no concatenation) as its own
-  indented, italicized, muted-color line beneath the batter's line
-  (`.pbp-runner-note`), per `specs/mini-prd-lineup-and-sim.md:140-148`.
+  `runner_notes` array of complete sentence strings, per
+  `specs/api-spec.md:414-443`. No player identity is attached to a note.
+- `web/src/lib/api.ts` / `web/src/views/MatchupView.vue` — `runner_notes` is
+  typed as `string[]`, and the Play-by-Play tab renders each entry directly
+  (no concatenation) as its own indented, italicized, muted-color line
+  beneath the batter's line (`.pbp-runner-note`), per
+  `specs/mini-prd-lineup-and-sim.md:140-148`.
 
-Note: an earlier version of this fix had `describe_runner_outcome` return a
-name-less clause (e.g. `"advances to third base"`) with the frontend
-concatenating `player.full_name` and `description` itself. That was changed
-after review: it forced the consumer to assemble the rendered string and
-baked a word-order assumption ("name, then clause") into the API contract.
-The batter's `sim_events.description` was never split this way — it's
-always a complete sentence — so `runner_notes[].description` was brought in
-line with that existing precedent instead.
+Two design corrections were made after review, both in the direction of
+consistency with how `play_by_play` already treats the batter:
+
+- An earlier version had `describe_runner_outcome` return a name-less clause
+  (e.g. `"advances to third base"`) with the frontend concatenating
+  `player.full_name` and `description` itself. This forced the consumer to
+  assemble the rendered string and baked a word-order assumption ("name,
+  then clause") into the API contract, unlike the batter's
+  `sim_events.description`, which is always a complete sentence. Fixed by
+  making `describe_runner_outcome` return the full sentence, name included.
+- A later version still attached a structured `player: {mlb_id, full_name}`
+  to each note alongside the now-complete sentence — redundant once the name
+  was in the text, and an asymmetry in the other direction: `play_by_play`
+  exposes no structured identity for the batter or the pitcher either (both
+  are only identifiable via prose), so singling out the runner for
+  structured identity had no principled justification. Fixed by dropping
+  `player` entirely; `runner_notes` is just an ordered array of strings.
 
 Covered by new/updated tests in `sim/tests/test_text_gen.py` (new file) and
 `sim/tests/test_engine_characterization.py`

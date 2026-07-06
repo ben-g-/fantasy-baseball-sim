@@ -418,9 +418,7 @@ Returns the full sim results for a completed matchup. Available to all managers 
       "sequence_number": 1,
       "event_type": "plate_appearance",
       "description": "Shohei Ohtani singles to center field",
-      "runner_notes": [
-        { "player": { "mlb_id": 200, "full_name": "Carson Kelly" }, "description": "Carson Kelly advances to third base" }
-      ],
+      "runner_notes": ["Carson Kelly advances to third base"],
       "runs_scored": 0,
       "outs_before_play": 0
     },
@@ -430,9 +428,7 @@ Returns the full sim results for a completed matchup. Available to all managers 
       "sequence_number": 2,
       "event_type": "plate_appearance",
       "description": "Mookie Betts hits a double down the left field line",
-      "runner_notes": [
-        { "player": { "mlb_id": 200, "full_name": "Carson Kelly" }, "description": "Carson Kelly scores from third base" }
-      ],
+      "runner_notes": ["Carson Kelly scores from third base"],
       "runs_scored": 1,
       "outs_before_play": 0
     }
@@ -440,7 +436,7 @@ Returns the full sim results for a completed matchup. Available to all managers 
 }
 ```
 
-`runner_notes` is an array with one entry per pre-existing baserunner (never the batter) whose outcome is notable for this play; it's omitted or empty when there's nothing to narrate (e.g. a strikeout (which never advances a runner), or a runner left unforced on a walk). See data-model.md §sim_event_runner_outcomes for the exact rule governing which runners get a note. Each entry's `description` is a complete, ready-to-render sentence (the runner's name is already included in the text, the same way the batter's name is embedded in the top-level `description`) — the consumer renders it as-is, as its own line, indented and styled distinctly from the batter's `description` line, beneath the play it belongs to. `player` identifies who the note is about (e.g. for use as a list key), but isn't meant to be assembled into the sentence.
+`runner_notes` is an array of complete, ready-to-render sentences — one per pre-existing baserunner (never the batter) whose outcome is notable for this play, in display order. It's omitted or empty when there's nothing to narrate (e.g. a strikeout (which never advances a runner), or a runner left unforced on a walk). See data-model.md §sim_event_runner_outcomes for the exact rule governing which runners get a note. Each entry already includes the runner's name (the same way the batter's name is embedded in the top-level `description`) — the consumer renders it as-is, as its own line, indented and styled distinctly from the batter's `description` line, beneath the play it belongs to. No player identity is attached to a `runner_notes` entry, consistent with `play_by_play` not exposing structured player identity anywhere else (the batter and pitcher are likewise only identifiable via the prose `description`, not a separate field).
 
 ---
 

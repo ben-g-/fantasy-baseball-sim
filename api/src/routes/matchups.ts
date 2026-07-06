@@ -282,16 +282,15 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
   const { data: runnerOutcomeRows } = eventIds.length
     ? await supabase
         .from('sim_event_runner_outcomes')
-        .select('sim_event_id, player_id, description')
+        .select('sim_event_id, description')
         .in('sim_event_id', eventIds)
         .not('description', 'is', null)
-    : { data: [] as { sim_event_id: string; player_id: number; description: string }[] };
+    : { data: [] as { sim_event_id: string; description: string }[] };
 
   // Collect all player IDs and fetch names
   const allPlayerIds = new Set<number>();
   for (const r of batterStatsRes.data ?? []) allPlayerIds.add(r.player_id);
   for (const r of pitcherStatsRes.data ?? []) allPlayerIds.add(r.player_id);
-  for (const r of runnerOutcomeRows ?? []) allPlayerIds.add(r.player_id);
 
   const { data: playerRows } = await supabase
     .from('players')
@@ -301,12 +300,9 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
     (playerRows ?? []).map((p) => [p.mlb_id, p.full_name]),
   );
 
-  const runnerNotesByEventId: Record<string, { player: { mlb_id: number; full_name: string }; description: string }[]> = {};
+  const runnerNotesByEventId: Record<string, string[]> = {};
   for (const r of runnerOutcomeRows ?? []) {
-    (runnerNotesByEventId[r.sim_event_id] ??= []).push({
-      player: { mlb_id: r.player_id, full_name: playerNames[r.player_id] ?? String(r.player_id) },
-      description: r.description,
-    });
+    (runnerNotesByEventId[r.sim_event_id] ??= []).push(r.description);
   }
 
   const positionsMap: Record<number, string[]> = {};

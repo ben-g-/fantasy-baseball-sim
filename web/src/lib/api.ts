@@ -177,18 +177,13 @@ export interface SimPitcherStat {
   hr: number
 }
 
-export interface SimRunnerNote {
-  player: { mlb_id: number; full_name: string }
-  description: string
-}
-
 export interface SimPlayByPlayEvent {
   inning: number
   half: 'top' | 'bottom'
   sequence_number: number
   event_type: string
   description: string | null
-  runner_notes: SimRunnerNote[]
+  runner_notes: string[]
   runs_scored: number
   outs_before_play: number
 }
