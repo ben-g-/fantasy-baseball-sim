@@ -726,6 +726,10 @@ def test_find_slot_falls_back_to_first_batter_when_missing():
     assert slot.player_id == 10, 'a player_id not present in the batting order should fall back to the first batter rather than raising'
 
 
+_RUNNER_NAMES = {11: 'Runner Eleven', 22: 'Runner Twenty-Two', 33: 'Runner Thirty-Three'}
+_RUNNER_PLAYER_INFO = {pid: {'full_name': name} for pid, name in _RUNNER_NAMES.items()}
+
+
 def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
     rows = _build_runner_outcomes(
         event_id='evt-1',
@@ -733,6 +737,7 @@ def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
         outcome=Outcome.K,
         runners_before={1: 11, 2: 22, 3: 0},
         runners_after={1: 11, 2: 22, 3: 0},
+        player_info=_RUNNER_PLAYER_INFO,
         ends_half_inning=False,
     )
 
@@ -758,17 +763,19 @@ def test_build_runner_outcomes_narrates_an_advance_and_a_score_on_a_single():
         outcome=Outcome.SINGLE,
         runners_before={1: 11, 2: 22, 3: 0},
         runners_after={1: 50, 2: 0, 3: 11},
+        player_info=_RUNNER_PLAYER_INFO,
         ends_half_inning=False,
     )
 
     runner_on_first = next(r for r in rows if r['base_before'] == 1)
-    assert runner_on_first['description'] == 'advances to third base', (
-        'a runner who took an extra base on a single should have that advance narrated'
+    assert runner_on_first['description'] == 'Runner Eleven advances to third base', (
+        'a runner who took an extra base on a single should have that advance narrated as a complete, '
+        "ready-to-render sentence including the runner's name"
     )
 
     runner_on_second = next(r for r in rows if r['base_before'] == 2)
     assert runner_on_second['final_base'] == 4, 'a runner on 2nd should always score on a single'
-    assert runner_on_second['description'] == 'scores from second base', (
+    assert runner_on_second['description'] == 'Runner Twenty-Two scores from second base', (
         'a runner who scored should be narrated as scoring from their prior base'
     )
 
@@ -780,11 +787,12 @@ def test_build_runner_outcomes_narrates_holds_on_non_inning_ending_groundout():
         outcome=Outcome.GO,
         runners_before={1: 0, 2: 22, 3: 0},
         runners_after={1: 0, 2: 22, 3: 0},
+        player_info=_RUNNER_PLAYER_INFO,
         ends_half_inning=False,
     )
 
     runner_on_second = next(r for r in rows if r['base_before'] == 2)
-    assert runner_on_second['description'] == 'holds at second base', (
+    assert runner_on_second['description'] == 'Runner Twenty-Two holds at second base', (
         'a groundout that does not end the half-inning would typically advance a runner, so a non-advance should be narrated'
     )
 
@@ -796,6 +804,7 @@ def test_build_runner_outcomes_silent_on_inning_ending_groundout():
         outcome=Outcome.GO,
         runners_before={1: 0, 2: 22, 3: 0},
         runners_after={1: 0, 2: 22, 3: 0},
+        player_info=_RUNNER_PLAYER_INFO,
         ends_half_inning=True,
     )
 

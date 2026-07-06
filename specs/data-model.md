@@ -321,7 +321,7 @@ One row per player (batter or baserunner) involved in a play. Captures both the 
 | final_base | integer | Nullable; 1/2/3/4 = scored if safe; null if put out |
 | putout_at_base | integer | Nullable; base at which the player was put out |
 | putout_type | putout_type | Nullable |
-| description | text | Nullable narrative text for this runner's outcome; written by the text-generation component. Only populated for pre-existing runners (`base_before` of 1, 2, or 3) whose outcome is notable per the rule below — never for the batter's own row (`base_before = 0`), whose outcome is narrated on `sim_events.description` instead. |
+| description | text | Nullable narrative text for this runner's outcome, as a complete, ready-to-render sentence including the runner's own name; written by the text-generation component. Only populated for pre-existing runners (`base_before` of 1, 2, or 3) whose outcome is notable per the rule below — never for the batter's own row (`base_before = 0`), whose outcome is narrated on `sim_events.description` instead. |
 
 Primary key: (sim_event_id, base_before)
 Unique constraint: (sim_event_id, player_id)
@@ -330,12 +330,12 @@ Unique constraint: (sim_event_id, player_id)
 
 For each row with `base_before` of 1, 2, or 3 on a `plate_appearance` event, the text-generation component writes a `description` when:
 
-- **The runner's base changed** (`final_base != base_before`, including scoring or being put out on the bases) — always narrated, e.g. "advances to third base", "scores from second", or (once base-running outs are modelled — see [bug-sim-8](../docs/bug-sim-8.md)) "is out at third base".
+- **The runner's base changed** (`final_base != base_before`, including scoring or being put out on the bases) — always narrated, e.g. "Carson Kelly advances to third base", "Carson Kelly scores from second", or (once base-running outs are modelled — see [bug-sim-8](../docs/bug-sim-8.md)) "Carson Kelly is out at third base".
 - **The runner's base did not change**, but the play was one where an advance would typically be expected:
   - the outcome was a hit (single, double, triple, or home run); or
   - the outcome was a ground-out that did not end the half-inning, which would most often advance any runner who was not out on the play.
 
-  This case is narrated as e.g. "holds at second base".
+  This case is narrated as e.g. "Carson Kelly holds at second base".
 
 A runner's row is left with a null `description` when the outcome was a strikeout, walk, or hit-by-pitch and the runner wasn't forced to move (standing pat on an unforced walk/HBP is the expected, unremarkable case), and when a ball-in-play out records the third out of the half-inning (any remaining runners' positions are moot once the side is retired).
 

@@ -421,7 +421,7 @@ const es = computed(() => [
                 <div v-for="ev in group.events" :key="ev.sequence_number" class="pbp-play">
                   <div class="pbp-ev">{{ ev.description }}</div>
                   <div v-for="note in ev.runner_notes" :key="note.player.mlb_id" class="pbp-runner-note">
-                    {{ note.player.full_name }} {{ note.description }}
+                    {{ note.description }}
                   </div>
                 </div>
               </div>

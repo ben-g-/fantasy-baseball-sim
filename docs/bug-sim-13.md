@@ -10,31 +10,45 @@ All four links in the chain were built:
 
 - `supabase/schema.sql` — added a nullable `description TEXT` column to
   `sim_event_runner_outcomes`.
-- `sim/src/text_gen.py` — added `describe_runner_outcome(outcome, base_before,
-  final_base, ends_half_inning)`, implementing the narration rule from
-  `specs/data-model.md:329-338`. It returns just the clause (e.g. `"advances
-  to third base"`, `"scores from second base"`, `"holds at second base"`),
-  not the player's name — the name is rendered separately alongside it (see
-  `api-spec.md`'s `runner_notes` shape), matching the DB/spec's own examples.
-- `sim/src/engine.py` — `_build_runner_outcomes` now takes an
-  `ends_half_inning` flag and attaches `description` (via
-  `describe_runner_outcome`) to each pre-existing runner's row; the batter's
-  own row (`base_before = 0`) always gets `description: None`, since the
-  batter is narrated on `sim_events.description` instead. The call site in
-  `_simulate_half_inning` computes `ends_half_inning = outs >= 3`
-  immediately after `_apply_pa_outcome` (before the subsequent stolen-base
-  attempt can further change `outs`), since the flag describes whether the
-  plate appearance itself ended the half-inning.
+- `sim/src/text_gen.py` — added `describe_runner_outcome(outcome, runner_name,
+  base_before, final_base, ends_half_inning)`, implementing the narration
+  rule from `specs/data-model.md:329-338`. It returns a complete,
+  ready-to-render sentence including the runner's own name (e.g. `"Carson
+  Kelly advances to third base"`), the same way `describe_pa` already
+  composes the batter's own line — deliberately not split into a bare clause
+  plus a separately-rendered name, so the consumer never has to assemble the
+  final string or assume where in it the name goes.
+- `sim/src/engine.py` — `_build_runner_outcomes` now takes `player_info` (to
+  resolve each runner's name) and an `ends_half_inning` flag, and attaches
+  `description` (via `describe_runner_outcome`) to each pre-existing
+  runner's row; the batter's own row (`base_before = 0`) always gets
+  `description: None`, since the batter is narrated on
+  `sim_events.description` instead. The call site in `_simulate_half_inning`
+  computes `ends_half_inning = outs >= 3` immediately after
+  `_apply_pa_outcome` (before the subsequent stolen-base attempt can further
+  change `outs`), since the flag describes whether the plate appearance
+  itself ended the half-inning.
 - `api/src/routes/matchups.ts` — the `/matchups/:id/results` query now also
   fetches `sim_event_runner_outcomes` (filtered to non-null `description`,
   keyed by `sim_event_id`), and each `play_by_play` entry gets a
   `runner_notes` array of `{ player: {mlb_id, full_name}, description }`,
-  per `specs/api-spec.md:414-443`.
+  per `specs/api-spec.md:414-443`. `description` is passed through verbatim;
+  `player` is included for identification (e.g. a list key) but the API does
+  no string assembly.
 - `web/src/lib/api.ts` / `web/src/views/MatchupView.vue` — added the
   `SimRunnerNote` type and `runner_notes` field, and the Play-by-Play tab now
-  renders each note as its own indented, italicized, muted-color line
-  beneath the batter's line (`.pbp-runner-note`), per
-  `specs/mini-prd-lineup-and-sim.md:140-148`.
+  renders each note's `description` directly (no concatenation) as its own
+  indented, italicized, muted-color line beneath the batter's line
+  (`.pbp-runner-note`), per `specs/mini-prd-lineup-and-sim.md:140-148`.
+
+Note: an earlier version of this fix had `describe_runner_outcome` return a
+name-less clause (e.g. `"advances to third base"`) with the frontend
+concatenating `player.full_name` and `description` itself. That was changed
+after review: it forced the consumer to assemble the rendered string and
+baked a word-order assumption ("name, then clause") into the API contract.
+The batter's `sim_events.description` was never split this way — it's
+always a complete sentence — so `runner_notes[].description` was brought in
+line with that existing precedent instead.
 
 Covered by new/updated tests in `sim/tests/test_text_gen.py` (new file) and
 `sim/tests/test_engine_characterization.py`

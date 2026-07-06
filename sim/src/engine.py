@@ -589,7 +589,8 @@ def simulate_game(
 
             all_runner_outcomes.extend(
                 _build_runner_outcomes(
-                    event_id, batter_slot.player_id, outcome, runners_before, runners, ends_half_inning,
+                    event_id, batter_slot.player_id, outcome, runners_before, runners,
+                    player_info, ends_half_inning,
                 )
             )
 
@@ -723,6 +724,7 @@ def _build_runner_outcomes(
     outcome: Outcome,
     runners_before: dict[int, int],
     runners_after: dict[int, int],
+    player_info: dict,
     ends_half_inning: bool,
 ) -> list[dict]:
     """Build sim_event_runner_outcomes rows for a plate appearance event."""
@@ -773,6 +775,7 @@ def _build_runner_outcomes(
             final_base = base_before  # runners stay on outs (no DP modelled)
         else:
             final_base = next((base for base, rpid in runners_after.items() if rpid == pid), 4)
+        runner_name = player_info.get(pid, {}).get('full_name', 'Unknown')
         rows.append({
             'sim_event_id': event_id,
             'base_before': base_before,
@@ -781,7 +784,7 @@ def _build_runner_outcomes(
             'final_base': final_base,
             'putout_at_base': None,
             'putout_type': None,
-            'description': describe_runner_outcome(outcome, base_before, final_base, ends_half_inning),
+            'description': describe_runner_outcome(outcome, runner_name, base_before, final_base, ends_half_inning),
         })
 
     return rows

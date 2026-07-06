@@ -105,6 +105,7 @@ _BASE_NAMES = {1: 'first', 2: 'second', 3: 'third'}
 
 def describe_runner_outcome(
     outcome: Outcome,
+    runner_name: str,
     base_before: int,
     final_base: int,
     ends_half_inning: bool,
@@ -115,17 +116,17 @@ def describe_runner_outcome(
     always narrated; a non-change is narrated only when an advance would
     typically be expected (a hit, or a groundout that doesn't end the
     half-inning) so the missed advance is visible rather than silently
-    omitted. The runner's name is not included here — it's rendered
-    separately alongside this clause (see api-spec.md's `runner_notes`).
+    omitted. Returns a complete sentence (name included), ready to render
+    as-is — mirroring how describe_pa composes the batter's own line.
     """
     if final_base != base_before:
         if final_base == 4:
-            return f'scores from {_BASE_NAMES[base_before]} base'
-        return f'advances to {_BASE_NAMES[final_base]} base'
+            return f'{runner_name} scores from {_BASE_NAMES[base_before]} base'
+        return f'{runner_name} advances to {_BASE_NAMES[final_base]} base'
 
     advance_expected = outcome.is_hit or (outcome is Outcome.GO and not ends_half_inning)
     if advance_expected:
-        return f'holds at {_BASE_NAMES[base_before]} base'
+        return f'{runner_name} holds at {_BASE_NAMES[base_before]} base'
     return None
 
 
