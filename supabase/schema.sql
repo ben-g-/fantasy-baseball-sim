@@ -257,6 +257,7 @@ CREATE TABLE sim_event_runner_outcomes (
   putout_at_base    INTEGER     CHECK (putout_at_base IN (1, 2, 3, 4)),
   putout_type       putout_type,
   description       TEXT,
+  narration_sequence INTEGER,
   PRIMARY KEY (sim_event_id, base_before),
   UNIQUE (sim_event_id, player_id)
 );

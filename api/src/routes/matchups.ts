@@ -285,6 +285,7 @@ matchupsRouter.get('/matchups/:id/results', requireAuth, async (req: Request, re
         .select('sim_event_id, description')
         .in('sim_event_id', eventIds)
         .not('description', 'is', null)
+        .order('narration_sequence')
     : { data: [] as { sim_event_id: string; description: string }[] };
 
   // Collect all player IDs and fetch names

@@ -753,6 +753,8 @@ def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
     assert runner_on_second['final_base'] == 2, 'no double/force play is modeled on outs, so the runner on 2nd should stay on 2nd'
     assert runner_on_first['description'] is None, 'a strikeout never advances a runner, so staying put should not be narrated'
     assert runner_on_second['description'] is None, 'a strikeout never advances a runner, so staying put should not be narrated'
+    assert runner_on_first['narration_sequence'] is None, 'a row with no description has nothing to sequence, so it should carry no narration_sequence'
+    assert runner_on_second['narration_sequence'] is None, 'a row with no description has nothing to sequence, so it should carry no narration_sequence'
 
 
 def test_build_runner_outcomes_narrates_an_advance_and_a_score_on_a_single():
@@ -777,6 +779,19 @@ def test_build_runner_outcomes_narrates_an_advance_and_a_score_on_a_single():
     assert runner_on_second['final_base'] == 4, 'a runner on 2nd should always score on a single'
     assert runner_on_second['description'] == 'Runner Twenty-Two scores from second base', (
         'a runner who scored should be narrated as scoring from their prior base'
+    )
+
+    assert runner_on_second['narration_sequence'] == 0, (
+        'narration order is closest-to-home first, so the runner who was on 2nd (and scored) should be sequenced before '
+        'the runner who was on 1st'
+    )
+    assert runner_on_first['narration_sequence'] == 1, (
+        'narration order is closest-to-home first, so the runner who was on 1st should be sequenced after '
+        'the runner who was on 2nd'
+    )
+    assert rows.index(runner_on_second) < rows.index(runner_on_first), (
+        'the returned rows should themselves be in narration order (closest-to-home first), not just carry a '
+        'narration_sequence value that a caller must sort by'
     )
 
 

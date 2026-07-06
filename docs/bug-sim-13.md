@@ -56,6 +56,23 @@ consistency with how `play_by_play` already treats the batter:
   are only identifiable via prose), so singling out the runner for
   structured identity had no principled justification. Fixed by dropping
   `player` entirely; `runner_notes` is just an ordered array of strings.
+- The order of that array was, until this point, an accident of
+  implementation: `_build_runner_outcomes` happened to iterate
+  `runners_before` in ascending base order (1st, 2nd, 3rd) because the dict
+  it iterates is initialized `{1: 0, 2: 0, 3: 0}` and never re-created, and
+  the API query had no `ORDER BY` at all, so the order the frontend received
+  was whatever Postgres happened to return. Deciding the ideal narration
+  order is the sim engine's domain — it's the only layer with the game-state
+  knowledge to judge what's natural to narrate first — so a `narration_sequence`
+  integer column was added to `sim_event_runner_outcomes`, assigned by
+  `_build_runner_outcomes` (closest-to-home first: a runner on 3rd is
+  sequenced before one on 2nd, before one on 1st), independent of
+  `base_before` so a future ordering rule isn't tied to it. The API now
+  orders explicitly by `narration_sequence` instead of relying on incidental
+  row order — `sim_event_id` doesn't need to be part of the sort, since notes
+  are bucketed into a per-event array by `sim_event_id` as a map key, not by
+  slicing a flat ordered list, so only the relative order *within* an event's
+  rows matters, and `narration_sequence` is unique within an event.
 
 Covered by new/updated tests in `sim/tests/test_text_gen.py` (new file) and
 `sim/tests/test_engine_characterization.py`

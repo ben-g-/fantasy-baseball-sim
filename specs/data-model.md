@@ -322,6 +322,7 @@ One row per player (batter or baserunner) involved in a play. Captures both the 
 | putout_at_base | integer | Nullable; base at which the player was put out |
 | putout_type | putout_type | Nullable |
 | description | text | Nullable narrative text for this runner's outcome, as a complete, ready-to-render sentence including the runner's own name; written by the text-generation component. Only populated for pre-existing runners (`base_before` of 1, 2, or 3) whose outcome is notable per the rule below — never for the batter's own row (`base_before = 0`), whose outcome is narrated on `sim_events.description` instead. |
+| narration_sequence | integer | Nullable; only set alongside a non-null `description`. Determines this note's position within the event's `runner_notes` array (ascending) — deciding that order is the sim engine's domain, since only it knows what actually happened on the play; the API preserves it verbatim via `ORDER BY`, and the frontend renders it as given. See the rule below for how it's assigned. |
 
 Primary key: (sim_event_id, base_before)
 Unique constraint: (sim_event_id, player_id)
@@ -338,6 +339,8 @@ For each row with `base_before` of 1, 2, or 3 on a `plate_appearance` event, the
   This case is narrated as e.g. "Carson Kelly holds at second base".
 
 A runner's row is left with a null `description` when the outcome was a strikeout, walk, or hit-by-pitch and the runner wasn't forced to move (standing pat on an unforced walk/HBP is the expected, unremarkable case), and when a ball-in-play out records the third out of the half-inning (any remaining runners' positions are moot once the side is retired).
+
+Rows that get a `description` are also assigned a `narration_sequence`, numbered from 0 in the order they should be narrated: closest to home first (a runner starting on 3rd before one on 2nd, before one on 1st), mirroring the convention of leading with the most advanced runner's outcome. This is independent of `base_before`'s own ordering — a future narration rule (e.g. ordering by significance, scored-before-advanced-before-held) could diverge from base order entirely without changing what `base_before` means.
 
 ---
 

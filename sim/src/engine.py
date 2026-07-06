@@ -742,6 +742,7 @@ def _build_runner_outcomes(
             'putout_at_base': 1,
             'putout_type': 'force',
             'description': None,
+            'narration_sequence': None,
         })
     elif outcome is Outcome.HR:
         rows.append({
@@ -753,6 +754,7 @@ def _build_runner_outcomes(
             'putout_at_base': None,
             'putout_type': None,
             'description': None,
+            'narration_sequence': None,
         })
     else:
         batter_final = next((base for base, pid in runners_after.items() if pid == batter_id), None)
@@ -765,17 +767,24 @@ def _build_runner_outcomes(
             'putout_at_base': None,
             'putout_type': None,
             'description': None,
+            'narration_sequence': None,
         })
 
-    # Each runner already on base
-    for base_before, pid in runners_before.items():
-        if not pid:
-            continue
+    # Each runner already on base, narrated closest-to-home first (base 3, then 2, then 1).
+    narration_sequence = 0
+    for base_before in sorted((b for b in runners_before if runners_before[b]), reverse=True):
+        pid = runners_before[base_before]
         if is_out:
             final_base = base_before  # runners stay on outs (no DP modelled)
         else:
             final_base = next((base for base, rpid in runners_after.items() if rpid == pid), 4)
         runner_name = player_info.get(pid, {}).get('full_name', 'Unknown')
+        description = describe_runner_outcome(outcome, runner_name, base_before, final_base, ends_half_inning)
+        if description is not None:
+            sequence = narration_sequence
+            narration_sequence += 1
+        else:
+            sequence = None
         rows.append({
             'sim_event_id': event_id,
             'base_before': base_before,
@@ -784,7 +793,8 @@ def _build_runner_outcomes(
             'final_base': final_base,
             'putout_at_base': None,
             'putout_type': None,
-            'description': describe_runner_outcome(outcome, runner_name, base_before, final_base, ends_half_inning),
+            'description': description,
+            'narration_sequence': sequence,
         })
 
     return rows
