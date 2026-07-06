@@ -157,6 +157,26 @@ once a probabilistic model lands.
   it. This is a materially different shape from the attempt/success model
   above and could reasonably be scoped as a follow-up increment within this
   bug rather than a blocking requirement for an initial probabilistic pass.
+- **The throw-derived secondary advance has a schema implication beyond the
+  sim engine**, discovered while reconciling `specs/api-spec.md`'s
+  `runner_notes` wording with this bug's scope: `sim_event_runner_outcomes`
+  currently assumes one row per player per event, via `base_before`'s
+  definition ("the base occupied before *the play*") and the
+  `UNIQUE (sim_event_id, player_id)` constraint. A throw-derived advance is a
+  *second* movement for a player who already has a row from their own
+  PA/advance outcome (e.g. the batter's own single, `base_before=0,
+  final_base=1`, followed by a throw-derived advance to 2nd) — a chained
+  sub-movement, not a second player's outcome. Supporting it will require:
+  - Dropping or loosening `UNIQUE (sim_event_id, player_id)` so a player can
+    have multiple rows in one event.
+  - Forking what `base_before` means: "pre-play base" (today's meaning, still
+    needed to know who started where) vs. "base at the start of *this*
+    movement" (the previous row's `final_base`, for any non-first row
+    belonging to the same player in the same event) — these coincide for a
+    player's first row but diverge for chained ones.
+  This doesn't need to be resolved before landing the base attempt/success
+  sampling described above; it only matters once the throw-derived mechanic
+  itself is in scope.
 - Since bug-sim-8 and this bug touch the same function and the same
   underlying "how do runners move on a batted ball" concern, consider fixing
   them in one base-running pass; they can also be fixed independently since
