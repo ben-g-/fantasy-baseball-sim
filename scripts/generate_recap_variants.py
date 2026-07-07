@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+from postgrest.exceptions import APIError
 from supabase import create_client
 
 load_dotenv()
@@ -92,6 +93,18 @@ def build_full_box_score_prompt(
 
 
 def fetch_matchup_data(client, matchup_id: str) -> dict:
+    try:
+        return _fetch_matchup_data(client, matchup_id)
+    except APIError as exc:
+        raise SystemExit(
+            f'Supabase request failed (code {exc.code}): {exc.message}\n'
+            "This is usually transient — a network blip, a request timeout, or a paused/idle "
+            'Supabase project waking up from a cold start. Try running the script again; if it '
+            'keeps failing, check your Supabase project status in the dashboard.'
+        ) from None
+
+
+def _fetch_matchup_data(client, matchup_id: str) -> dict:
     matchup = client.table('matchups').select(
         'id, home_team_id, road_team_id, sim_status'
     ).eq('id', matchup_id).single().execute().data
