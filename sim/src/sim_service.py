@@ -146,7 +146,8 @@ def _generate_and_write_recap(
         road_batter_stats=[b for b in result['batter_stats'] if b['team_id'] == road_team_id],
         home_pitcher_stats=[p for p in result['pitcher_stats'] if p['team_id'] == home_team_id],
         road_pitcher_stats=[p for p in result['pitcher_stats'] if p['team_id'] == road_team_id],
-        play_by_play=[e['description'] for e in result['events'] if e.get('description')],
+        events=result['events'],
+        runner_outcomes=result['runner_outcomes'],
         player_info=player_info,
     )
     recap_text = llm_client.generate_text(prompt)

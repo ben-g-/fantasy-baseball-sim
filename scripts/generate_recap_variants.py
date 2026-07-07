@@ -62,24 +62,27 @@ def build_full_box_score_prompt(
     road_batter_stats: list[dict],
     home_pitcher_stats: list[dict],
     road_pitcher_stats: list[dict],
-    play_by_play: list[str],
+    events: list[dict],
+    runner_outcomes: list[dict],
     player_info: dict,
 ) -> str:
     """Same shape as recap.build_prompt, but with every batter/pitcher line
     included instead of a pre-filtered "notable" subset — for comparison."""
-    lines = (
-        _full_batting_lines(home_batter_stats, player_info)
-        + _full_batting_lines(road_batter_stats, player_info)
-        + _full_pitching_lines(home_pitcher_stats, player_info)
-        + _full_pitching_lines(road_pitcher_stats, player_info)
-    )
-    box_score_text = '\n'.join(lines) if lines else 'None'
-    pbp_text = '\n'.join(play_by_play) if play_by_play else 'Not available'
+    home_lines = _full_batting_lines(home_batter_stats, player_info) + _full_pitching_lines(home_pitcher_stats, player_info)
+    road_lines = _full_batting_lines(road_batter_stats, player_info) + _full_pitching_lines(road_pitcher_stats, player_info)
+    box_score_text = '\n\n'.join([
+        f'{home_team_name}:\n' + ('\n'.join(home_lines) if home_lines else 'None'),
+        f'{road_team_name}:\n' + ('\n'.join(road_lines) if road_lines else 'None'),
+    ])
+    pbp_text = recap.build_play_by_play_text(events, runner_outcomes, home_team_name, road_team_name)
 
     return (
         'You are a sportswriter producing a short recap of a simulated baseball game '
         'between two fantasy baseball rosters.\n\n'
-        f'Final score: {road_team_name} {final_score["road"]}, {home_team_name} {final_score["home"]}\n\n'
+        f'Home team: {home_team_name}\n'
+        f'Road team: {road_team_name}\n\n'
+        f'Final score: {road_team_name} (road) {final_score["road"]}, '
+        f'{home_team_name} (home) {final_score["home"]}\n\n'
         f'Box score:\n{box_score_text}\n\n'
         f'Play-by-play:\n{pbp_text}\n\n'
         'Write a 2-4 paragraph narrative recap of this game in sportswriter style. '
@@ -121,9 +124,18 @@ def fetch_matchup_data(client, matchup_id: str) -> dict:
     ).eq('matchup_id', matchup_id).order('pitching_sequence').execute().data
 
     events = client.table('sim_events').select(
-        'sequence_number, description'
+        'id, inning, half, sequence_number, description'
     ).eq('matchup_id', matchup_id).order('sequence_number').execute().data
-    play_by_play = [e['description'] for e in events if e['description']]
+
+    event_ids = [e['id'] for e in events]
+    runner_outcomes = (
+        client.table('sim_event_runner_outcomes')
+        .select('sim_event_id, description, narration_sequence')
+        .in_('sim_event_id', event_ids)
+        .execute()
+        .data
+        if event_ids else []
+    )
 
     player_ids = list({r['player_id'] for r in batter_stats} | {r['player_id'] for r in pitcher_stats})
     players = client.table('players').select('mlb_id, full_name').in_('mlb_id', player_ids).execute().data
@@ -137,7 +149,8 @@ def fetch_matchup_data(client, matchup_id: str) -> dict:
         'road_batter_stats': [b for b in batter_stats if b['team_id'] == road_team_id],
         'home_pitcher_stats': [p for p in pitcher_stats if p['team_id'] == home_team_id],
         'road_pitcher_stats': [p for p in pitcher_stats if p['team_id'] == road_team_id],
-        'play_by_play': play_by_play,
+        'events': events,
+        'runner_outcomes': runner_outcomes,
         'player_info': player_info,
     }
 
@@ -160,7 +173,8 @@ def main() -> None:
         road_batter_stats=data['road_batter_stats'],
         home_pitcher_stats=data['home_pitcher_stats'],
         road_pitcher_stats=data['road_pitcher_stats'],
-        play_by_play=data['play_by_play'],
+        events=data['events'],
+        runner_outcomes=data['runner_outcomes'],
         player_info=data['player_info'],
     )
 
