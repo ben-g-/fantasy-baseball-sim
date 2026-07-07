@@ -27,6 +27,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-9](bug-sim-9.md) | Sim engine | HBP credited to batter's `bb` bucket but not the pitcher's | Open |
 | [bug-sim-10](bug-sim-10.md) | Sim engine | Runner advancement on hits is deterministic, not probabilistic | Open |
 | [bug-sim-13](bug-sim-13.md) | Sim engine, API server | Play-by-Play never narrates baserunner outcomes (schema, text-gen, and API all missing) | Fixed |
+| [bug-sim-14](bug-sim-14.md) | Sim engine (recap generation) | AI-generated game recaps contain factual errors | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 
 ## Low severity
