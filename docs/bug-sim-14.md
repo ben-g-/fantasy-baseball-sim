@@ -6,19 +6,9 @@
 
 ## Summary
 
-After a real completed matchup was simulated, the AI-generated recap stored in `sim_recaps`
-and shown on the Matchup Screen's Recap tab was reported as "not of usable quality due to
-factual errors." No specific example was captured before the investigation was deferred, so
-the exact nature of the error(s) — misattributed player/team, wrong score, invented event,
-etc. — is unknown.
-
-This follows shortly after four structural gaps in the recap prompt were identified and
-fixed in `sim/src/recap.py`: the home team wasn't explicitly labeled, batting/pitching lines
-weren't attributed to a team, play-by-play lacked half-inning labels, and play-by-play
-omitted baserunner-advancement events (`sim_event_runner_outcomes`). Whether this report is a
-further symptom of a related gap, a new formatting problem, an upstream data bug (wrong stats
-or events actually persisted for this matchup), or the model hallucinating despite a
-well-formed prompt, has not been determined.
+After a matchup is simulated, the AI-generated recap stored in `sim_recaps`
+and shown on the Matchup Screen's Recap tab are not of usable quality due to
+factual errors. I have examples stored locally.
 
 ## Location
 
@@ -30,12 +20,6 @@ well-formed prompt, has not been determined.
   variant) against a real completed matchup in Supabase, and prints the prompt and generated
   recap without writing to `sim_recaps` — the intended way to reproduce this without needing
   to re-run a live sim.
-
-## Details
-
-No concrete example (recap text, matchup ID, or the prompt that produced it) was captured in
-the session where this was reported. Investigation was explicitly deferred by the user before
-a repro could be gathered.
 
 ## Suggested fix
 
@@ -52,8 +36,3 @@ a repro could be gathered.
   includes "Do not invent any statistics or events not present above" and this still occurred,
   so a stricter instruction alone may not be sufficient — consider what else about the prompt
   or model choice could be adjusted.
-
-## Verification
-
-Blocked on capturing a concrete example (recap text + matchup ID + the corresponding prompt)
-before a fix can be attempted or verified.

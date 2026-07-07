@@ -2,7 +2,7 @@
 
 Conflicts between the implementation and the specs (`specs/architecture.md`,
 `specs/data-model.md`, `specs/api-spec.md`, `specs/mini-prd-lineup-and-sim.md`,
-`specs/build-plan.md`), identified during the pre-Phase-6 spec audit.
+`specs/build-plan.md`).
 
 ## High severity
 
