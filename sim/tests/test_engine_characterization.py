@@ -6,7 +6,6 @@ branch logic inside simulate_game.
 """
 
 import random
-from itertools import cycle
 
 import engine
 from engine import (
@@ -95,12 +94,36 @@ def _make_team_state(team_id: str, pitcher_id: int) -> TeamState:
     )
 
 
-def _run_with_outcome_cycle(monkeypatch, outcomes: list[Outcome]) -> dict:
-    outcome_cycle = cycle(outcomes)
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcome_cycle))
+def _run_with_per_side_outcomes(monkeypatch, home_fn, road_fn, try_steal_result=None) -> dict:
+    """
+    Run a full game where each home PA's outcome comes from home_fn(n) and each road
+    PA's outcome comes from road_fn(n) — n being that side's own plate-appearance
+    count, independent of the other side's. This lets a test give one side a
+    decisive, early edge without having to work out how many PAs the other side's
+    pattern consumes per half-inning. That independence matters because a *symmetric*
+    outcome pattern between the two sides never produces a winner in regulation, so the
+    game would only "end" via the engine's extra-innings/tie-breaking behavior — today
+    that's the max_innings safety cap, but bug-sim-7 replaces it with a forced-HR rule
+    these tests bypass entirely (they stub out `_simulate_pa`), so relying on it is
+    fragile. Deciding the game within regulation sidesteps that dependency altogether.
+    """
+    home_ids = {slot['player_id'] for slot in _base_sim_inputs()['home_lineup']['batting_order']}
+    counters = {'home': 0, 'road': 0}
+
+    def fake_simulate_pa(batter_slot, *_args, **_kwargs):
+        side = 'home' if batter_slot.player_id in home_ids else 'road'
+        n = counters[side]
+        counters[side] += 1
+        return (home_fn if side == 'home' else road_fn)(n)
+
+    monkeypatch.setattr(engine, '_simulate_pa', fake_simulate_pa)
     monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
-    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: try_steal_result)
     return simulate_game(**_base_sim_inputs())
+
+
+def _cycle_fn(pattern: list[Outcome]):
+    return lambda n: pattern[n % len(pattern)]
 
 
 def _plate_appearance_outcomes(result: dict) -> list[str]:
@@ -112,26 +135,32 @@ def _plate_appearance_outcomes(result: dict) -> list[str]:
 
 
 def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: Outcome.K)
-    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
-
-    result = simulate_game(**_base_sim_inputs())
+    # A game of nothing but strikeouts can never produce a winner in 9 innings, so one
+    # exception is unavoidable: home's very first plate appearance (leadoff, bottom of
+    # the 1st) is forced to a solo home run, deciding the game outright. Every other PA,
+    # for both sides, is a strikeout.
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=lambda n: Outcome.HR if n == 0 else Outcome.K,
+        road_fn=lambda n: Outcome.K,
+    )
 
     pa_events = [e for e in result['events'] if e['event_type'] == 'plate_appearance']
     pa_count = len(pa_events)
-    assert pa_count > 0, 'a full game with every PA forced to a strikeout should still play at least one PA'
-    assert all(e['description'] == 'k' for e in pa_events), 'every forced PA outcome was a strikeout, so every event description should be k'
+    k_events = [e for e in pa_events if e['description'] == Outcome.K]
+    assert pa_count > 0, 'a full game forcing strikeouts should still play at least one PA'
+    assert len(k_events) == pa_count - 1, 'every PA except the one deciding home run should be a strikeout'
 
     total_batter_ab = sum(r['ab'] for r in result['batter_stats'])
     total_batter_k = sum(r['k'] for r in result['batter_stats'])
     total_pitcher_outs = sum(r['outs_recorded'] for r in result['pitcher_stats'])
 
-    assert total_batter_ab == pa_count, 'every strikeout is an AB, so total batter AB should equal the number of PAs'
-    assert total_batter_k == pa_count, 'every PA was a strikeout, so total batter K should equal the number of PAs'
-    assert total_pitcher_outs == pa_count, 'every strikeout is one out, so total pitcher outs_recorded should equal the number of PAs'
-    assert result['final_score'] == {'home': 0, 'road': 0}, 'a game of nothing but strikeouts should never score a run'
-    assert sum(r['runs'] for r in result['line_score']) == 0, 'line score runs should sum to zero when no runner ever reaches base'
-    assert sum(r['hits'] for r in result['line_score']) == 0, 'line score hits should sum to zero when every PA is a strikeout'
+    assert total_batter_ab == pa_count, 'every PA (strikeout or the deciding HR) is an AB, so total batter AB should equal the number of PAs'
+    assert total_batter_k == pa_count - 1, 'every PA but the deciding HR was a strikeout, so total batter K should be one less than the number of PAs'
+    assert total_pitcher_outs == pa_count - 1, 'every strikeout is one out and the HR is not, so total pitcher outs_recorded should be one less than the number of PAs'
+    assert result['final_score'] == {'home': 1, 'road': 0}, 'home should win 1-0 on the sole deciding home run, with every other PA a scoreless strikeout'
+    assert sum(r['runs'] for r in result['line_score']) == 1, 'the only run in the game should be the deciding home run'
+    assert sum(r['hits'] for r in result['line_score']) == 1, 'the only hit in the game should be the deciding home run'
 
 
 def test_caught_stealing_outs_are_credited_to_pitcher_outs_recorded(monkeypatch):
@@ -224,11 +253,14 @@ def test_home_already_leading_entering_9th_does_not_bat_or_get_a_line_score_row(
 
 # bug-sim-9: pitcher side never gets `bb` credit for HBP; see docs/bug-sim-9.md.
 def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
-    outcomes = cycle([Outcome.BB, Outcome.HBP, Outcome.K, Outcome.K, Outcome.K])
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcomes))
-    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
-
-    result = simulate_game(**_base_sim_inputs())
+    # Road generates the bb/hbp occurrences under test; home is forced to a decisive
+    # early HR so the game resolves in regulation instead of depending on extra-innings
+    # behavior (see _run_with_per_side_outcomes).
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=_cycle_fn([Outcome.HR, Outcome.K, Outcome.K, Outcome.K]),
+        road_fn=_cycle_fn([Outcome.BB, Outcome.HBP, Outcome.K, Outcome.K, Outcome.K]),
+    )
 
     pa_outcomes = [
         e['description']
@@ -399,12 +431,13 @@ def test_apply_pa_outcome_bases_loaded_walk_credits_forced_run_to_runner_on_thir
 
 # bug-sim-11
 def test_simulate_game_batter_runs_sum_to_team_score(monkeypatch):
-    outcomes = cycle([Outcome.HR, Outcome.K, Outcome.K, Outcome.K])
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcomes))
-    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
-    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: None)
-
-    result = simulate_game(**_base_sim_inputs())
+    # Home gets the HR-heavy cycle under test; road is strikeout-only so the game
+    # always resolves home-ahead in regulation (see _run_with_per_side_outcomes).
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=_cycle_fn([Outcome.HR, Outcome.K, Outcome.K, Outcome.K]),
+        road_fn=lambda n: Outcome.K,
+    )
 
     home_batter_runs = sum(r['r'] for r in result['batter_stats'] if r['team_id'] == 'home-team')
     road_batter_runs = sum(r['r'] for r in result['batter_stats'] if r['team_id'] == 'road-team')
@@ -415,7 +448,13 @@ def test_simulate_game_batter_runs_sum_to_team_score(monkeypatch):
 
 
 def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, [Outcome.BB, Outcome.K, Outcome.K, Outcome.K])
+    # Road generates the bb occurrences under test; home is forced to a decisive early
+    # HR so the game resolves in regulation (see _run_with_per_side_outcomes).
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=_cycle_fn([Outcome.HR, Outcome.K, Outcome.K, Outcome.K]),
+        road_fn=_cycle_fn([Outcome.BB, Outcome.K, Outcome.K, Outcome.K]),
+    )
     pa_outcomes = _plate_appearance_outcomes(result)
 
     bb_count = pa_outcomes.count('bb')
@@ -427,7 +466,13 @@ def test_outcome_branch_bb_increments_batter_and_pitcher_bb(monkeypatch):
 
 # bug-sim-9
 def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, [Outcome.HBP, Outcome.K, Outcome.K, Outcome.K])
+    # Road generates the hbp occurrences under test; home is forced to a decisive early
+    # HR so the game resolves in regulation (see _run_with_per_side_outcomes).
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=_cycle_fn([Outcome.HR, Outcome.K, Outcome.K, Outcome.K]),
+        road_fn=_cycle_fn([Outcome.HBP, Outcome.K, Outcome.K, Outcome.K]),
+    )
     pa_outcomes = _plate_appearance_outcomes(result)
 
     hbp_count = pa_outcomes.count('hbp')
@@ -438,15 +483,27 @@ def test_outcome_branch_hbp_increments_batter_bb_only(monkeypatch):
 
 
 def test_outcome_branch_double_increments_hit_buckets(monkeypatch):
-    result = _run_with_outcome_cycle(monkeypatch, [Outcome.DOUBLE, Outcome.K, Outcome.K, Outcome.K])
+    # Road generates the double occurrences under test; home is forced to a decisive
+    # early HR so the game resolves in regulation (see _run_with_per_side_outcomes).
+    result = _run_with_per_side_outcomes(
+        monkeypatch,
+        home_fn=_cycle_fn([Outcome.HR, Outcome.K, Outcome.K, Outcome.K]),
+        road_fn=_cycle_fn([Outcome.DOUBLE, Outcome.K, Outcome.K, Outcome.K]),
+    )
     pa_outcomes = _plate_appearance_outcomes(result)
 
     double_count = pa_outcomes.count('double')
     assert double_count > 0, 'the forced outcome cycle includes double, so at least one should appear in the play-by-play'
-    assert sum(r['h'] for r in result['batter_stats']) == double_count, 'total batter hits across a full game should equal the number of doubles'
-    assert sum(r['doubles'] for r in result['batter_stats']) == double_count, 'total batter doubles should equal the number of double events'
-    assert sum(r['h'] for r in result['pitcher_stats']) == double_count, 'total pitcher hits allowed should equal the number of doubles'
-    assert sum(r['ab'] for r in result['batter_stats']) == len(pa_outcomes), 'every PA in this cycle (double or strikeout) is an AB, so total AB should equal total PAs'
+
+    # Scoped to the road team specifically, since home's forced HRs also add to the
+    # combined `h` bucket (a home run is a hit too) and would make an unscoped total
+    # overcount relative to double_count.
+    road_batter_stats = [r for r in result['batter_stats'] if r['team_id'] == 'road-team']
+    home_pitcher_stats = [r for r in result['pitcher_stats'] if r['team_id'] == 'home-team']
+    assert sum(r['h'] for r in road_batter_stats) == double_count, 'total road batter hits should equal the number of doubles'
+    assert sum(r['doubles'] for r in road_batter_stats) == double_count, 'total road batter doubles should equal the number of double events'
+    assert sum(r['h'] for r in home_pitcher_stats) == double_count, "total hits allowed by home's pitcher(s) should equal the number of doubles road hit off them"
+    assert sum(r['ab'] for r in result['batter_stats']) == len(pa_outcomes), 'every PA in this cycle (double, HR, or strikeout) is an AB, so total AB should equal total PAs'
 
 
 def test_make_event_builds_expected_shape():
