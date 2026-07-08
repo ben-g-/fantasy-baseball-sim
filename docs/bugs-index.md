@@ -29,6 +29,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-13](bug-sim-13.md) | Sim engine, API server | Play-by-Play never narrates baserunner outcomes (schema, text-gen, and API all missing) | Fixed |
 | [bug-sim-14](bug-sim-14.md) | Sim engine (recap generation) | AI-generated game recaps contain factual errors | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
+| [bug-web-1](bug-web-1.md) | Web client (Matchup Screen) | Realtime refresh blanks the page and can revert in-progress batting-order edits | Open |
 
 ## Low severity
 
