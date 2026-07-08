@@ -135,16 +135,34 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
 
 
 def test_caught_stealing_outs_are_credited_to_pitcher_outs_recorded(monkeypatch):
-    # Every half-inning follows the same 3-PA pattern: a leadoff walk, then two
-    # strikeouts. The walk always puts a runner on 1st with 0 outs, which triggers a
-    # steal attempt that we force to fail (caught stealing), so every half-inning's
-    # outs are exactly [caught stealing, strikeout, strikeout].
-    outcome_cycle = cycle([Outcome.BB, Outcome.K, Outcome.K])
-    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcome_cycle))
+    # Every PA follows a repeating walk/strikeout/strikeout pattern (a leadoff walk
+    # always draws a forced-failed steal attempt, i.e. a caught stealing), except the
+    # 4th PA (home's leadoff batter in the bottom of the 1st), which is a solo home run.
+    # Home leads 1-0 from then on, so — same as the walk-off/skip-9th scenario — the game
+    # ends after the top of the 9th without ever reaching extra innings. That keeps this
+    # test's outcome independent of whatever extra-innings/tie-breaking rule the engine
+    # uses (see bug-sim-7), since it never gets there.
+    pa_index = {'n': 0}
+
+    def fake_simulate_pa(*_args, **_kwargs):
+        if pa_index['n'] == 3:
+            outcome = Outcome.HR
+        else:
+            outcome = [Outcome.BB, Outcome.K, Outcome.K][pa_index['n'] % 3]
+        pa_index['n'] += 1
+        return outcome
+
+    monkeypatch.setattr(engine, '_simulate_pa', fake_simulate_pa)
     monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
     monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: False)
 
     result = simulate_game(**_base_sim_inputs())
+
+    assert result['final_score'] == {'home': 1, 'road': 0}, (
+        'home should lead 1-0 wire-to-wire off the forced 1st-inning HR, with every other '
+        'PA a strikeout or a caught-stealing (never a run), so the game ends after the top '
+        'of the 9th without ever reaching extra innings'
+    )
 
     caught_stealing_events = [e for e in result['events'] if e['event_type'] == 'caught_stealing']
     strikeout_events = [
