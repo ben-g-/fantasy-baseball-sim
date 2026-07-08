@@ -565,6 +565,7 @@ def simulate_game(
 
             seq += 1
             event_id = str(uuid.uuid4())
+            pa_seq = seq
 
             runs_on_play = 0
             is_out = outcome.is_out
@@ -580,6 +581,21 @@ def simulate_game(
                 inning_hits=inning_hits,
             )
             ends_half_inning = outs >= 3
+            pa_outs_before_play = outs - (1 if is_out else 0)
+
+            # Append the PA event now, using the seq/event_id reserved for it above and
+            # the outs as of the PA itself — before the steal attempt below can mutate
+            # either and get attributed to this PA instead of to itself.
+            batter_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
+            pitcher_name = player_info.get(fielding_team.current_pitcher.player_id, {}).get('full_name', 'Unknown')
+            all_events.append(_make_event(
+                matchup_id, inning, half, pa_seq, 'plate_appearance',
+                describe_pa(outcome, batter_name, pitcher_name, rng),
+                pitcher_player_id=fielding_team.current_pitcher.player_id,
+                runs_scored=runs_on_play,
+                outs_before_play=pa_outs_before_play,
+                event_id=event_id,
+            ))
 
             # Attempt stolen base (only if runner on 1st, < 2 outs)
             runners, outs, seq, steal_events = _apply_steal_attempt(
@@ -596,17 +612,6 @@ def simulate_game(
                     player_info, ends_half_inning,
                 )
             )
-
-            batter_name = player_info.get(batter_slot.player_id, {}).get('full_name', 'Unknown')
-            pitcher_name = player_info.get(fielding_team.current_pitcher.player_id, {}).get('full_name', 'Unknown')
-            all_events.append(_make_event(
-                matchup_id, inning, half, seq, 'plate_appearance',
-                describe_pa(outcome, batter_name, pitcher_name, rng),
-                pitcher_player_id=fielding_team.current_pitcher.player_id,
-                runs_scored=runs_on_play,
-                outs_before_play=outs - (1 if is_out else 0),
-                event_id=event_id,
-            ))
 
         # Only record a line-score entry if the team actually batted this half-inning —
         # a pre-existing lead can end it before any plate appearance (see walk-off check above).

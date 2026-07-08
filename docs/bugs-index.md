@@ -21,7 +21,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-3](bug-sim-3.md) | Sim engine | Platoon probability model does not match specified algorithm | Open |
 | [bug-sim-4](bug-sim-4.md) | Sim engine | `sim_batter_positions` never records "PH" and drops position history | Open |
 | [bug-sim-5](bug-sim-5.md) | Sim engine | Walk/HBP-forced runs not attributed to R/ER/RBI | Open |
-| [bug-sim-6](bug-sim-6.md) | Sim engine | PA event sequencing corrupted by post-PA steal events | Open |
+| [bug-sim-6](bug-sim-6.md) | Sim engine | PA event sequencing corrupted by post-PA steal events | Fixed |
 | [bug-sim-7](bug-sim-7.md) | Sim engine | Extra-innings termination doesn't match spec (18-inning cap, no forced-HR rule) | Open |
 | [bug-sim-8](bug-sim-8.md) | Sim engine | Baserunner outcomes on outs not modelled (no sac flies, double plays, or advancement on outs) | Open |
 | [bug-sim-9](bug-sim-9.md) | Sim engine | HBP credited to batter's `bb` bucket but not the pitcher's | Open |

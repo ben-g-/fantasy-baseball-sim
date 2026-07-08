@@ -208,6 +208,56 @@ def test_caught_stealing_outs_are_credited_to_pitcher_outs_recorded(monkeypatch)
     )
 
 
+# bug-sim-6: the PA event is appended after any caught-stealing/stolen-base event
+# from the same iteration and re-reads the mutated `seq`/`outs` counters, so a PA that
+# puts a runner on base can end up with a sequence_number that collides with (or comes
+# after) the very steal attempt it created, and an outs_before_play that wrongly
+# absorbs the later caught-stealing out.
+def test_pa_event_sequencing_is_not_corrupted_by_its_own_caught_stealing(monkeypatch):
+    # PA 0 (road's leadoff batter, top of the 1st) is a single, and every steal
+    # attempt is forced to fail, so the very next thing that happens is a caught
+    # stealing off the runner that single just put on 1st. PA 3 (home's leadoff,
+    # bottom of the 1st) is a forced solo home run so the game resolves 1-0 after the
+    # top of the 9th, independent of extra-innings/tie-breaking behavior (see
+    # bug-sim-7). Every other PA is a strikeout.
+    pa_index = {'n': 0}
+
+    def fake_simulate_pa(*_args, **_kwargs):
+        if pa_index['n'] == 0:
+            outcome = Outcome.SINGLE
+        elif pa_index['n'] == 3:
+            outcome = Outcome.HR
+        else:
+            outcome = Outcome.K
+        pa_index['n'] += 1
+        return outcome
+
+    monkeypatch.setattr(engine, '_simulate_pa', fake_simulate_pa)
+    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
+    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: False)
+
+    result = simulate_game(**_base_sim_inputs())
+
+    assert result['final_score'] == {'home': 1, 'road': 0}, (
+        'home should lead 1-0 wire-to-wire off the forced 1st-inning HR, with every '
+        'other PA a strikeout or a caught-stealing (never a run), so the game ends '
+        'after the top of the 9th without ever reaching extra innings'
+    )
+
+    single_event = next(e for e in result['events'] if e['event_type'] == 'plate_appearance' and e['description'] == Outcome.SINGLE)
+    cs_event = next(e for e in result['events'] if e['event_type'] == 'caught_stealing')
+
+    assert single_event['sequence_number'] < cs_event['sequence_number'], (
+        'the single created the runner that then got caught stealing, so the single\'s '
+        'plate_appearance event must sort strictly before the caught_stealing event, '
+        'not collide with or come after it'
+    )
+    assert single_event['outs_before_play'] == 0, (
+        'no outs had occurred before the leadoff single itself, so its outs_before_play '
+        'must be 0 — it should not absorb the caught-stealing out that happened after it'
+    )
+
+
 # The Matchup Screen's box score renders "x" for a half-inning a team didn't bat (e.g.
 # home already leading entering the bottom of the 9th). That depends on this: such a
 # half-inning should produce no plate appearances and no line-score row at all.

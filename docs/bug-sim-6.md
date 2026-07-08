@@ -2,7 +2,7 @@
 
 **Severity:** Medium
 **Component:** Sim engine
-**Status:** Open
+**Status:** Fixed
 
 ## Summary
 
@@ -68,3 +68,16 @@ and `pitching_change` events emitted earlier in the iteration, so the PA event's
 Add a test that forces a single followed by a caught stealing and assert: the PA event's
 `sequence_number` is less than the caught-stealing event's, and the PA's
 `outs_before_play` does not include the caught-stealing out.
+
+`sim/tests/test_engine_characterization.py::test_pa_event_sequencing_is_not_corrupted_by_its_own_caught_stealing`
+does exactly this and failed pre-fix with a sequence_number collision (`2 == 2` between
+the single and its caught stealing).
+
+## Fix
+
+`_simulate_half_inning`'s per-PA loop now builds and appends the `plate_appearance`
+event immediately after `_apply_pa_outcome` resolves it, using the `seq`/`event_id`
+reserved at the start of the iteration and `outs_before_play` captured at that same
+point — before `_apply_steal_attempt` runs and can mutate `seq`/`outs` out from under
+it. The steal/caught-stealing event (if any) is appended afterward with its own,
+later `seq`, so it always sorts after the PA that created the runner.
