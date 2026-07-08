@@ -340,9 +340,9 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 - Suppress pinch-hitting in low-leverage situations (large lead or deficit in late innings) to conserve bench depth
 - Model pinch-hitting for defensive replacements: a fielder who has batted can stay in the game at a different position
 
-**Stolen base decisions**
+**Context-aware stolen base decisions**
 - Suppress steal attempts in low-leverage situations (e.g. large lead, 2 outs and a power hitter up)
-- Weight the attempt rate by the cost/benefit ratio: never attempt 3rd base steal with 2 outs
+- Weight the attempt rate by the cost/benefit ratio: rarely attempt 3rd base steal with 2 outs
 
 **Validation:** Sim outcomes show measurably more realistic patterns vs. a fixed-decision baseline: fewer blown leads in late innings, platoon advantages reflected in box scores, reduced stolen base frequency in blowouts.
 
@@ -399,7 +399,6 @@ The Phase 5 AI manager enforces hard caps and performs positional substitutions,
 - **SP ineligibility verification:** Confirm that a pitcher who started (or is going to start — keeping in mind that the SP locks before the previous week's sim) in one of the two preceding weeks' sims appears with `is_sp_eligible_this_week: false` in the SP candidate list. Requires a matchup where the SP deadline has not passed and at least one pitcher has a recent start on record in the database.
 - **Home screen "action required" indicator:** Badge on matchup cards when a deadline is approaching and the user has not yet submitted their SP or batting order.
 - **SB opportunity denominator:** The sim currently approximates steal opportunities as `singles + bb + hbp`. A more accurate denominator would be number of teammate plate appearances spent on first or second base with the subsequent base unoccupied, which requires tracking baserunner state across the season — not available in the pre-lock stats snapshot.
-- **Context-aware SB decisions:** The AI manager currently ignores game context when deciding whether to attempt a steal (e.g. should never attempt to steal 3rd with 2 outs). Addressed in Phase 10 (AI Manager).
 
 ---
 
