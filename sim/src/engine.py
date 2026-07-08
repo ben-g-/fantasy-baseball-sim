@@ -466,6 +466,7 @@ def _apply_steal_attempt(
     else:
         runners[1] = 0
         outs += 1
+        fielding_team.record_pitcher(outs=1)
         seq += 1
         event = _make_event(
             matchup_id, inning, half, seq, 'caught_stealing',

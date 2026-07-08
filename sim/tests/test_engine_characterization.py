@@ -134,6 +134,33 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
     assert sum(r['hits'] for r in result['line_score']) == 0, 'line score hits should sum to zero when every PA is a strikeout'
 
 
+def test_caught_stealing_outs_are_credited_to_pitcher_outs_recorded(monkeypatch):
+    # Every half-inning follows the same 3-PA pattern: a leadoff walk, then two
+    # strikeouts. The walk always puts a runner on 1st with 0 outs, which triggers a
+    # steal attempt that we force to fail (caught stealing), so every half-inning's
+    # outs are exactly [caught stealing, strikeout, strikeout].
+    outcome_cycle = cycle([Outcome.BB, Outcome.K, Outcome.K])
+    monkeypatch.setattr(engine, '_simulate_pa', lambda *args, **kwargs: next(outcome_cycle))
+    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
+    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: False)
+
+    result = simulate_game(**_base_sim_inputs())
+
+    caught_stealing_events = [e for e in result['events'] if e['event_type'] == 'caught_stealing']
+    strikeout_events = [
+        e for e in result['events']
+        if e['event_type'] == 'plate_appearance' and e['description'] == Outcome.K
+    ]
+    assert len(caught_stealing_events) > 0, 'the forced BB/K/K pattern should produce at least one caught-stealing out'
+
+    total_pitcher_outs = sum(r['outs_recorded'] for r in result['pitcher_stats'])
+    expected_outs = len(strikeout_events) + len(caught_stealing_events)
+    assert total_pitcher_outs == expected_outs, (
+        'every strikeout and every caught-stealing is a defensive out, so total pitcher outs_recorded '
+        'must count both — a pitcher who is part of a caught-stealing play should not have their IP undercounted'
+    )
+
+
 # The Matchup Screen's box score renders "x" for a half-inning a team didn't bat (e.g.
 # home already leading entering the bottom of the 9th). That depends on this: such a
 # half-inning should produce no plate appearances and no line-score row at all.
@@ -705,6 +732,10 @@ def test_apply_steal_attempt_caught_adds_out_and_removes_runner(monkeypatch):
     assert events[0]['event_type'] == 'caught_stealing', 'the emitted event should be a caught_stealing event'
     assert events[0]['sequence_number'] == 5, 'the caught-stealing event should carry the newly advanced sequence number'
     assert events[0]['outs_before_play'] == 1, 'the caught-stealing event should record the outs before the caught-stealing out itself was added'
+    assert fielding_team.pitcher_stats[2]['outs_recorded'] == 1, (
+        'a caught-stealing out should be credited to the pitcher\'s outs_recorded just like any other out, '
+        'otherwise IP is undercounted for pitchers involved in caught-stealing plays'
+    )
 
 
 def test_should_change_pitcher_requires_both_caps_reached():
