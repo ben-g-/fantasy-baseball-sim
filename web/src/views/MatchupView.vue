@@ -167,16 +167,21 @@ function benchDetail(player: Player | null | undefined): string {
   return sorted.length ? `${base} · ${sorted.join(' ')}` : base
 }
 
+// Formats a rate stat like OBP/SLG without a leading zero, e.g. ".343" instead of "0.343"
+function rate3(n: number): string {
+  return n.toFixed(3).replace(/^0\./, '.')
+}
+
 // Line 3: OBP / SLG — pitcher allowed stats or batter splits
 function playerStats(player: Player | null | undefined): string | null {
   if (!player) return null
   if (player.obp_allowed != null) {
-    return `OBP ${player.obp_allowed.toFixed(3)} / SLG ${player.slg_allowed?.toFixed(3) ?? '—'}`
+    return `OBP ${rate3(player.obp_allowed)} / SLG ${player.slg_allowed != null ? rate3(player.slg_allowed) : '—'}`
   }
   const s = player.vs_rhp ?? player.vs_lhp
   if (!s) return null
   const { obp, slg } = splitsStats(s)
-  return `OBP ${obp.toFixed(3)} / SLG ${slg.toFixed(3)}`
+  return `OBP ${rate3(obp)} / SLG ${rate3(slg)}`
 }
 
 // Per-panel composables — panels[0] is always the user's team (left column)
@@ -544,7 +549,7 @@ const es = computed(() => [
                   <span class="player-name">{{ item.full_name }}</span>
                   <span class="player-detail">{{ item.mlb_team }} · {{ item.bats }}</span>
                   <span v-if="item.obp != null" class="player-detail">
-                    OBP {{ item.obp.toFixed(3) }} / SLG {{ item.slg?.toFixed(3) }}
+                    OBP {{ rate3(item.obp) }} / SLG {{ item.slg != null ? rate3(item.slg) : '—' }}
                   </span>
                 </div>
                 <button
