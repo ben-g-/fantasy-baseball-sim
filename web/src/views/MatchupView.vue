@@ -210,6 +210,16 @@ const lineScoreInnings = computed(() => {
   return Math.max(results.value.line_score.home.length, results.value.line_score.road.length, 9)
 })
 
+// Home doesn't bat in its final inning when already leading after the top half —
+// show "x" for that frame instead of leaving it blank or implying zero runs.
+function homeLineCell(n: number): string | number {
+  const ls = results.value?.line_score
+  if (!ls) return ''
+  const runs = ls.home[n - 1]
+  if (runs != null) return runs
+  return ls.road[n - 1] != null ? 'x' : ''
+}
+
 const pbpGroups = computed(() => {
   if (!results.value) return []
   const events = results.value.play_by_play
@@ -353,7 +363,7 @@ const es = computed(() => [
                     </tr>
                     <tr>
                       <td class="ls-name">{{ matchup.home_team?.name }}</td>
-                      <td v-for="n in lineScoreInnings" :key="n" class="ls-inn">{{ results.line_score.home[n - 1] ?? '' }}</td>
+                      <td v-for="n in lineScoreInnings" :key="n" class="ls-inn">{{ homeLineCell(n) }}</td>
                       <td class="ls-sep ls-tot">{{ results.line_score.home_totals.r }}</td>
                       <td class="ls-tot">{{ results.line_score.home_totals.h }}</td>
                       <td class="ls-tot">{{ results.line_score.home_totals.e }}</td>

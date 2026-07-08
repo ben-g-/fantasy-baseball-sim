@@ -134,6 +134,48 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
     assert sum(r['hits'] for r in result['line_score']) == 0, 'line score hits should sum to zero when every PA is a strikeout'
 
 
+# bug-web-1's box-score "x" fix depends on this: a team already leading entering its final
+# half-inning should not bat at all, and should get no line-score row for it.
+def test_home_already_leading_entering_9th_does_not_bat_or_get_a_line_score_row(monkeypatch):
+    pa_index = {'n': 0}
+
+    def fake_simulate_pa(*_args, **_kwargs):
+        # Every PA is a strikeout except the 4th (home's leadoff batter in the bottom
+        # of the 1st), which is a solo home run — home leads 1-0 from then on.
+        outcome = Outcome.HR if pa_index['n'] == 3 else Outcome.K
+        pa_index['n'] += 1
+        return outcome
+
+    monkeypatch.setattr(engine, '_simulate_pa', fake_simulate_pa)
+    monkeypatch.setattr(engine, 'describe_pa', lambda outcome, *_args, **_kwargs: outcome)
+    monkeypatch.setattr(engine, '_try_steal', lambda *_args, **_kwargs: None)
+
+    result = simulate_game(**_base_sim_inputs())
+
+    assert result['final_score'] == {'home': 1, 'road': 0}, (
+        'home scores its only run on the forced 1st-inning HR and the road team is '
+        'strikeout-only for the rest of the game'
+    )
+
+    bottom_9th_home_pas = [
+        e for e in result['events']
+        if e['event_type'] == 'plate_appearance' and e['inning'] == 9 and e['half'] == 'bottom'
+    ]
+    assert bottom_9th_home_pas == [], (
+        'home already led entering the bottom of the 9th, so the game should end after '
+        'the top half without home ever batting'
+    )
+
+    home_9th_line = [r for r in result['line_score'] if r['team_id'] == 'home-team' and r['inning'] == 9]
+    assert home_9th_line == [], (
+        'a half-inning the team never batted in should have no line-score row at all, so '
+        'the box score can distinguish "did not bat" (x) from "batted and scored zero" (0)'
+    )
+
+    road_9th_line = [r for r in result['line_score'] if r['team_id'] == 'road-team' and r['inning'] == 9]
+    assert len(road_9th_line) == 1, 'the road team did play the top of the 9th, so it should still get a line-score row for it'
+
+
 # bug-sim-9: pitcher side never gets `bb` credit for HBP; see docs/bug-sim-9.md.
 def test_hbp_currently_counts_in_batter_bb_bucket(monkeypatch):
     outcomes = cycle([Outcome.BB, Outcome.HBP, Outcome.K, Outcome.K, Outcome.K])

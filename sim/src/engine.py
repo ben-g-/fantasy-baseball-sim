@@ -526,6 +526,7 @@ def simulate_game(
         runners: dict[int, int] = {1: 0, 2: 0, 3: 0}  # base -> player_id (0=empty)
         inning_runs = 0
         inning_hits = 0
+        pa_count = 0
 
         # Extra innings: zombie runner on 2nd base
         if inning > 9:
@@ -539,6 +540,7 @@ def simulate_game(
                 break
 
             batter_slot = batting_team.next_batter()
+            pa_count += 1
 
             # Pinch-hit if batter is at PA cap (pure pitchers are exempt — they auto-out forever)
             batter_slot, seq, sub_events = _apply_pinch_hit_substitution(
@@ -605,7 +607,10 @@ def simulate_game(
                 event_id=event_id,
             ))
 
-        _record_line(batting_team, inning, inning_runs, inning_hits)
+        # Only record a line-score entry if the team actually batted this half-inning —
+        # a pre-existing lead can end it before any plate appearance (see walk-off check above).
+        if pa_count > 0:
+            _record_line(batting_team, inning, inning_runs, inning_hits)
         return inning_runs
 
     def _current_score_delta(batting_team, fielding_team, half, hs, rs):
@@ -855,7 +860,9 @@ def _build_line_score_rows(matchup_id: str, home: TeamState, road: TeamState, la
     rows = []
     for inning in range(1, last_inning + 1):
         for team in (home, road):
-            ls = team.line_score.get(inning, {'r': 0, 'h': 0, 'e': 0})
+            ls = team.line_score.get(inning)
+            if ls is None:
+                continue  # team did not bat this half-inning (e.g. already leading entering it)
             rows.append({
                 'matchup_id': matchup_id,
                 'team_id': team.team_id,
