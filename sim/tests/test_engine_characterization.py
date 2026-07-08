@@ -134,8 +134,9 @@ def test_simulate_game_all_strikeouts_are_consistent(monkeypatch):
     assert sum(r['hits'] for r in result['line_score']) == 0, 'line score hits should sum to zero when every PA is a strikeout'
 
 
-# bug-web-1's box-score "x" fix depends on this: a team already leading entering its final
-# half-inning should not bat at all, and should get no line-score row for it.
+# The Matchup Screen's box score renders "x" for a half-inning a team didn't bat (e.g.
+# home already leading entering the bottom of the 9th). That depends on this: such a
+# half-inning should produce no plate appearances and no line-score row at all.
 def test_home_already_leading_entering_9th_does_not_bat_or_get_a_line_score_row(monkeypatch):
     pa_index = {'n': 0}
 
