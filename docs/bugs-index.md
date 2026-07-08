@@ -28,6 +28,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-10](bug-sim-10.md) | Sim engine | Runner advancement on hits is deterministic, not probabilistic | Open |
 | [bug-sim-13](bug-sim-13.md) | Sim engine, API server | Play-by-Play never narrates baserunner outcomes (schema, text-gen, and API all missing) | Fixed |
 | [bug-sim-14](bug-sim-14.md) | Sim engine (recap generation) | AI-generated game recaps contain factual errors | Open |
+| [bug-sim-15](bug-sim-15.md) | Sim engine | Stolen-base model only covers 1st→2nd with <2 outs, and disregards whether 2nd is occupied | Open |
 | [bug-api-2](bug-api-2.md) | API server | `GET /teams/:id/matchups` always returns `final_score: null` | Open |
 | [bug-web-1](bug-web-1.md) | Web client (Matchup Screen) | Realtime refresh blanks the page and can revert in-progress batting-order edits | Open |
 
@@ -67,6 +68,11 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
   `r`-crediting fix for `bug-sim-11` reads scorer identity before this branch's bad
   reassignment happens, so it isn't affected by `bug-sim-12`; and `bug-sim-5`'s pitcher
   R/ER + batter RBI attribution doesn't depend on the base-state bug either.
+- `bug-sim-15` shares the "no runner may vanish or double up on a base" invariant with
+  `bug-sim-8`/`bug-sim-10`, but is otherwise independent: those are about runner
+  advancement on outs/hits, this is about stolen-base attempts. It's also independent of
+  the Phase 10 "context-aware stolen base decisions" build-plan item, which tunes the
+  attempt *rate* of an otherwise-correct model rather than fixing the model's coverage.
 - The SP two-week ineligibility item is spec-acknowledged-deferred and not tracked here;
   see the audit discussion.
 - The deadline DST assumption is documented as a code comment in
