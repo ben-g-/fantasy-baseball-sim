@@ -21,7 +21,8 @@ out that logically happened afterward. Both break the chronological play-by-play
 
 ## Location
 
-- `sim/src/engine.py:453-532` — PA resolution, steal handling, and the deferred PA-event append
+- `sim/src/engine.py:430-478` — `_apply_steal_attempt`, where the steal/caught-stealing event is built and appended
+- `sim/src/engine.py:538-609` — `_simulate_half_inning`'s per-PA loop: `seq`/`event_id` reservation, outcome resolution, the steal-attempt call, and the deferred PA-event append
 
 ## Details
 
