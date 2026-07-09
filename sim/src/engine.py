@@ -71,9 +71,9 @@ def _advance_runners(outcome: Outcome, runners: dict[int, int], outs: int) -> tu
     if outcome in (Outcome.BB, Outcome.HBP):
         if runners[1] and runners[2] and runners[3]:
             scorers.append(runners[3])
-            new_runners[3] = runners[3]
-            new_runners[2] = runners[2]
-            new_runners[1] = runners[1]
+            new_runners[3] = runners[2]
+            new_runners[2] = runners[1]
+            new_runners[1] = -1
         elif runners[1] and runners[2]:
             new_runners[3] = runners[2]
             new_runners[2] = runners[1]

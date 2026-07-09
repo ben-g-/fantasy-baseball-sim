@@ -479,6 +479,57 @@ def test_apply_pa_outcome_bases_loaded_walk_credits_forced_run_to_runner_on_thir
     assert batting_team.batter_stats[99]['r'] == 1, 'the runner forced home from 3rd should be credited with a run'
 
 
+# bug-sim-12
+def test_apply_pa_outcome_bases_loaded_walk_advances_runners_and_places_batter_on_first():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(4, 99, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome=Outcome.BB,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 99},
+        outs=0,
+        inning_hits=0,
+    )
+
+    assert runners == {1: 111, 2: 77, 3: 88}, (
+        'a bases-loaded walk forces every runner up one base and the batter onto 1st: '
+        'the runner on 3rd scores and leaves the bases, the runner on 2nd moves to 3rd, '
+        'the runner on 1st moves to 2nd, and the batter who drew the walk takes 1st'
+    )
+
+
+# bug-sim-12
+def test_apply_pa_outcome_bases_loaded_hbp_advances_runners_and_places_batter_on_first():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(4, 99, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    outs, runners, inning_hits, runs_on_play = _apply_pa_outcome(
+        outcome=Outcome.HBP,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 99},
+        outs=1,
+        inning_hits=0,
+    )
+
+    assert runners == {1: 111, 2: 77, 3: 88}, (
+        'a bases-loaded HBP forces every runner up one base and the batter onto 1st, '
+        'the same as a bases-loaded walk'
+    )
+
+
 # bug-sim-11
 def test_simulate_game_batter_runs_sum_to_team_score(monkeypatch):
     # Home gets the HR-heavy cycle under test; road is strikeout-only so the game

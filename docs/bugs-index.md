@@ -11,7 +11,7 @@ Conflicts between the implementation and the specs (`specs/architecture.md`,
 | [bug-sim-1](bug-sim-1.md) | Sim engine | Bullpen never populated — AI manager cannot change pitchers | Open |
 | [bug-sim-2](bug-sim-2.md) | Sim engine | Pre-lock stats used for probabilities and appearance caps; post-lock never read | Open |
 | [bug-sim-11](bug-sim-11.md) | Sim engine | Batter `r` (runs scored) never incremented — box score R column always zero | Fixed |
-| [bug-sim-12](bug-sim-12.md) | Sim engine | Bases-loaded walk/HBP doesn't move any runners and drops the batter from the base state | Open |
+| [bug-sim-12](bug-sim-12.md) | Sim engine | Bases-loaded walk/HBP doesn't move any runners and drops the batter from the base state | Fixed |
 | [bug-api-1](bug-api-1.md) | API server | Server-side batting-order validation far weaker than spec | Open |
 
 ## Medium severity

@@ -2,7 +2,7 @@
 
 **Severity:** High
 **Component:** Sim engine
-**Status:** Open
+**Status:** Fixed
 
 ## Summary
 
@@ -126,3 +126,22 @@ if runners[1] and runners[2] and runners[3]:
   shape for a bases-loaded walk and a bases-loaded HBP (today's tests for
   this bug and bug-sim-11 deliberately avoid asserting on `runners` for this
   case, to avoid encoding this defect as expected behavior).
+
+## Fix
+
+`sim/tests/test_engine_characterization.py::test_apply_pa_outcome_bases_loaded_walk_advances_runners_and_places_batter_on_first`
+and `::test_apply_pa_outcome_bases_loaded_hbp_advances_runners_and_places_batter_on_first`
+assert the exact `new_runners` shape and failed pre-fix (`{1: 77, 2: 88, 3: 99}` —
+completely unchanged — instead of `{1: 111, 2: 77, 3: 88}`).
+
+The bases-loaded branch of `_advance_runners` now shifts each runner up one base and
+sets the batter placeholder on 1st, matching the pattern already used by the other
+force-advance branches:
+
+```python
+if runners[1] and runners[2] and runners[3]:
+    scorers.append(runners[3])
+    new_runners[3] = runners[2]
+    new_runners[2] = runners[1]
+    new_runners[1] = -1
+```
