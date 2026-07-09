@@ -819,6 +819,8 @@ def test_apply_pitcher_change_keeps_two_way_player_as_dh():
     assert len(events) == 1, 'exactly one pitching-change event should be emitted'
 
 
+# bug-sim-15: only 1st-base steal attempts are modeled — a runner on 2nd (like the one
+# set up below) is never considered, even though he's on base. See docs/bug-sim-15.md.
 def test_apply_steal_attempt_noop_without_runner_on_first():
     batting_team = _make_team_state('bat', pitcher_id=1)
     fielding_team = _make_team_state('fld', pitcher_id=2)
@@ -835,6 +837,8 @@ def test_apply_steal_attempt_noop_without_runner_on_first():
     assert events == [], 'no runner on 1st should mean no steal-related event is emitted'
 
 
+# bug-sim-15: steal attempts are hard-disabled at 2 outs rather than merely lower-probability;
+# see docs/bug-sim-15.md.
 def test_apply_steal_attempt_noop_with_two_outs():
     batting_team = _make_team_state('bat', pitcher_id=1)
     fielding_team = _make_team_state('fld', pitcher_id=2)
@@ -980,6 +984,7 @@ _RUNNER_NAMES = {11: 'Runner Eleven', 22: 'Runner Twenty-Two', 33: 'Runner Thirt
 _RUNNER_PLAYER_INFO = {pid: {'full_name': name} for pid, name in _RUNNER_NAMES.items()}
 
 
+# bug-sim-8: no double/force play or putout-type modeling on outs; see docs/bug-sim-8.md.
 def test_build_runner_outcomes_for_out_keeps_existing_runners_stationary():
     rows = _build_runner_outcomes(
         event_id='evt-1',
