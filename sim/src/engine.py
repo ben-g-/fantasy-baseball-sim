@@ -690,15 +690,15 @@ def _apply_pa_outcome(
         new_runners, runs_on_play, scorers = _advance_runners(Outcome.BB, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
-        fielding_team.record_pitcher(bb=1)
-        batting_team.record_batter(batter_slot, bb=1)
+        fielding_team.record_pitcher(bb=1, r=runs_on_play, er=runs_on_play)
+        batting_team.record_batter(batter_slot, bb=1, rbi=runs_on_play)
         _credit_runs_scored(batting_team, scorers)
     elif outcome is Outcome.HBP:
         new_runners, runs_on_play, scorers = _advance_runners(Outcome.HBP, runners, outs)
         _apply_batter_to_runners(new_runners, batter_slot.player_id)
         runners = new_runners
-        fielding_team.record_pitcher()
-        batting_team.record_batter(batter_slot, bb=1)  # bb bucket for HBP (on-base)
+        fielding_team.record_pitcher(r=runs_on_play, er=runs_on_play)
+        batting_team.record_batter(batter_slot, bb=1, rbi=runs_on_play)  # bb bucket for HBP (on-base)
         _credit_runs_scored(batting_team, scorers)
     elif outcome.is_hit:
         new_runners, runs_on_play, scorers = _advance_runners(outcome, runners, outs)

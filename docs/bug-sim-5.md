@@ -2,7 +2,7 @@
 
 **Severity:** Medium
 **Component:** Sim engine
-**Status:** Open
+**Status:** Fixed
 
 ## Summary
 
@@ -74,3 +74,27 @@ separate decision on HBP bucket/schema semantics.
 Add a test that loads the bases and forces a walk, then assert the pitcher's `r`/`er`
 and the batter's `rbi` each increased by 1 and that the sum of pitcher R across a team
 equals the opponent's line-score run total.
+
+## Fix
+
+`sim/tests/test_engine.py::test_apply_pa_outcome_bases_loaded_walk_credits_pitcher_r_er_and_batter_rbi`
+and `::test_apply_pa_outcome_bases_loaded_hbp_credits_pitcher_r_er_and_batter_rbi` assert the
+pitcher's `r`/`er` and the batter's `rbi` each increase by 1 on a bases-loaded walk/HBP that
+forces in a run, and failed pre-fix (`0 == 1` for each).
+
+The `bb` and `hbp` branches of `_apply_pa_outcome` now pass `runs_on_play` through to
+`record_pitcher`'s `r`/`er` and to `record_batter`'s `rbi`, matching the pattern already
+used by the hit branch:
+
+```python
+elif outcome is Outcome.BB:
+    ...
+    fielding_team.record_pitcher(bb=1, r=runs_on_play, er=runs_on_play)
+    batting_team.record_batter(batter_slot, bb=1, rbi=runs_on_play)
+    _credit_runs_scored(batting_team, scorers)
+elif outcome is Outcome.HBP:
+    ...
+    fielding_team.record_pitcher(r=runs_on_play, er=runs_on_play)
+    batting_team.record_batter(batter_slot, bb=1, rbi=runs_on_play)  # bb bucket for HBP (on-base)
+    _credit_runs_scored(batting_team, scorers)
+```

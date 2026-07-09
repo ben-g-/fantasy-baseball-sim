@@ -331,6 +331,54 @@ def test_apply_pa_outcome_bases_loaded_walk_credits_forced_run_to_runner_on_thir
     assert batting_team.batter_stats[99]['r'] == 1, 'the runner forced home from 3rd should be credited with a run'
 
 
+# bug-sim-5
+def test_apply_pa_outcome_bases_loaded_walk_credits_pitcher_r_er_and_batter_rbi():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(4, 99, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    _apply_pa_outcome(
+        outcome=Outcome.BB,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 99},
+        outs=0,
+        inning_hits=0,
+    )
+
+    assert fielding_team.pitcher_stats[2]['r'] == 1, 'the run forced in by a bases-loaded walk should be charged to the pitcher'
+    assert fielding_team.pitcher_stats[2]['er'] == 1, 'a run forced in by a walk is earned, so it should count toward the pitcher ER too'
+    assert batting_team.batter_stats[111]['rbi'] == 1, 'the batter who drew the bases-loaded walk should be credited with the RBI'
+
+
+# bug-sim-5
+def test_apply_pa_outcome_bases_loaded_hbp_credits_pitcher_r_er_and_batter_rbi():
+    batting_team = _make_team_state('bat', pitcher_id=1)
+    fielding_team = _make_team_state('fld', pitcher_id=2)
+    batting_team.batting_order.append(BatterSlot(2, 77, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(3, 88, 'OF', 'R', None))
+    batting_team.batting_order.append(BatterSlot(4, 99, 'OF', 'R', None))
+    batter_slot = BatterSlot(1, 111, 'DH', 'R', None)
+
+    _apply_pa_outcome(
+        outcome=Outcome.HBP,
+        batter_slot=batter_slot,
+        fielding_team=fielding_team,
+        batting_team=batting_team,
+        runners={1: 77, 2: 88, 3: 99},
+        outs=1,
+        inning_hits=0,
+    )
+
+    assert fielding_team.pitcher_stats[2]['r'] == 1, 'the run forced in by a bases-loaded HBP should be charged to the pitcher'
+    assert fielding_team.pitcher_stats[2]['er'] == 1, 'a run forced in by an HBP is earned, so it should count toward the pitcher ER too'
+    assert batting_team.batter_stats[111]['rbi'] == 1, 'the batter who was hit by a pitch with the bases loaded should be credited with the RBI'
+
+
 # bug-sim-12
 def test_apply_pa_outcome_bases_loaded_walk_advances_runners_and_places_batter_on_first():
     batting_team = _make_team_state('bat', pitcher_id=1)
