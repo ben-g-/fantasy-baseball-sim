@@ -243,9 +243,19 @@ const pbpGroups = computed(() => {
   return groups
 })
 
+const recapHeadline = computed(() => {
+  const firstLine = results.value?.recap?.trim().split('\n', 1)[0] ?? ''
+  return firstLine.match(/^#{1,6}\s+(.*)/)?.[1].trim() ?? null
+})
+
 const recapParagraphs = computed(() => {
   if (!results.value?.recap) return []
-  return results.value.recap.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+  let text = results.value.recap.trim()
+  const firstLine = text.split('\n', 1)[0]
+  if (/^#{1,6}\s+/.test(firstLine)) {
+    text = text.slice(firstLine.length).trim()
+  }
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
 })
 
 function sortedBatting(rows: SimResults['box_score']['home']['batting']) {
@@ -450,6 +460,7 @@ const es = computed(() => [
 
             <TabPanel value="recap">
               <div v-if="recapParagraphs.length" class="recap-text">
+                <h3 v-if="recapHeadline" class="recap-headline">{{ recapHeadline }}</h3>
                 <p v-for="(para, i) in recapParagraphs" :key="i">{{ para }}</p>
               </div>
               <p v-else class="text-color-secondary" style="font-style: italic;">
@@ -1076,5 +1087,11 @@ const es = computed(() => [
 
 .recap-text p:last-child {
   margin-bottom: 0;
+}
+
+.recap-headline {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
 }
 </style>
