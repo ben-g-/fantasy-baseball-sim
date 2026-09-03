@@ -92,6 +92,9 @@ def main() -> None:
             })
             bot_ids.append(resp.user.id)
     except AuthError as e:
+        # As of 2026-09, admin.create_user doesn't actually enforce the project's password
+        # policy (unlike admin.update_user/sign_up), so this branch is currently unreachable —
+        # see https://github.com/supabase/auth/issues/1959. Kept for if/when that's fixed.
         if e.code == 'weak_password':
             reasons = getattr(e, 'reasons', None)
             detail = f' ({", ".join(reasons)})' if reasons else ''
