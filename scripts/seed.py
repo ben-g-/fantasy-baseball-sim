@@ -130,13 +130,27 @@ def main() -> None:
 
     # ── 5. Assign rosters ─────────────────────────────────────────────────────
     print('Assigning rosters...')
-    all_player_ids: list[int] = [p['mlb_id'] for p in
-                                  client.table('players').select('mlb_id').execute().data]
+
+    def fetch_all(table: str, columns: str) -> list:
+        """Paginates around PostgREST's default max-rows setting, which caps a single
+        request at (commonly) 1000 rows regardless of a larger client-side .limit()."""
+        rows = []
+        page_size = 1000
+        start = 0
+        while True:
+            page = client.table(table).select(columns).range(start, start + page_size - 1).execute().data
+            rows.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+        return rows
+
+    all_player_ids: list[int] = [p['mlb_id'] for p in fetch_all('players', 'mlb_id')]
     all_player_ids.sort()
 
     # Fetch all position eligibility upfront — reused for both roster assignment and
     # lineup building in step 8, avoiding a second round-trip.
-    pos_rows = client.table('player_positions').select('player_id, position').limit(10000).execute().data
+    pos_rows = fetch_all('player_positions', 'player_id, position')
     player_pos_map: dict[int, set[str]] = {}
     for row in pos_rows:
         player_pos_map.setdefault(row['player_id'], set()).add(row['position'])
