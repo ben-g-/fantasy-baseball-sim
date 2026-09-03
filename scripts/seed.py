@@ -6,13 +6,14 @@ Usage: python scripts/seed.py
 Requires .env with
 - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 - MANAGER_EMAIL_1 and MANAGER_EMAIL_2: emails of 2 real manager accounts that already exist in the system
+- BOT_PASSWORD: password to assign to the seeded bot accounts (must satisfy Supabase's password policy)
 """
 
 import os
 from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from supabase import create_client
+from supabase import AuthError, create_client
 
 load_dotenv()
 
@@ -22,7 +23,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 REAL_MANAGER_EMAILS = tuple(os.environ[v] for v in ('MANAGER_EMAIL_1', 'MANAGER_EMAIL_2'))
 BOT_EMAIL_TEMPLATE = 'bot{}@fantasy-sim.dev'
 BOT_COUNT = 18
-BOT_PASSWORD = 'SeedBot2026!'
+BOT_PASSWORD = os.environ['BOT_PASSWORD']
 OHTANI_MLB_ID = 660271
 ROSTER_SIZE = 22
 SEASON_WEEKS = 24
@@ -81,14 +82,21 @@ def main() -> None:
     # ── 2. Create bot users ───────────────────────────────────────────────────
     print(f'Creating {BOT_COUNT} bot users...')
     bot_ids: list[str] = []
-    for n in range(1, BOT_COUNT + 1):
-        resp = client.auth.admin.create_user({
-            'email': BOT_EMAIL_TEMPLATE.format(n),
-            'password': BOT_PASSWORD,
-            'email_confirm': True,
-            'user_metadata': {'display_name': f'Bot {n}'},
-        })
-        bot_ids.append(resp.user.id)
+    try:
+        for n in range(1, BOT_COUNT + 1):
+            resp = client.auth.admin.create_user({
+                'email': BOT_EMAIL_TEMPLATE.format(n),
+                'password': BOT_PASSWORD,
+                'email_confirm': True,
+                'user_metadata': {'display_name': f'Bot {n}'},
+            })
+            bot_ids.append(resp.user.id)
+    except AuthError as e:
+        if e.code == 'weak_password':
+            reasons = getattr(e, 'reasons', None)
+            detail = f' ({", ".join(reasons)})' if reasons else ''
+            raise SystemExit(f'BOT_PASSWORD was rejected by Supabase as too weak{detail}. Set a stronger password.')
+        raise
 
     # ── 3. Create leagues ─────────────────────────────────────────────────────
     print('Creating leagues...')
